@@ -2,3 +2,5 @@ build/
 DerivedData/
 *.xcodeproj
 .DS_Store
+scripts/
+release/

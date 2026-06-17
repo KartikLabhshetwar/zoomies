@@ -21,7 +21,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
 .DEFAULT_GOAL := help
-.PHONY: help project build test run stop sprites install clean
+.PHONY: help project build test run stop sprites install clean release
 
 help: ## List available commands
 	@echo "Zoomies — available commands:"
@@ -62,6 +62,9 @@ install: build ## Copy Zoomies.app into /Applications and launch it
 	@cp -R "$(APP_PATH)" /Applications/
 	@open "/Applications/$(APP_NAME).app"
 	@echo "✅ Installed to /Applications/$(APP_NAME).app and launched."
+
+release: ## Build, sign, notarize, and package a DMG release (pass VERSION=x.y.z to override)
+	@bash scripts/release.sh $(if $(VERSION),$(VERSION),)
 
 clean: ## Remove build artifacts and the generated Xcode project
 	@rm -rf $(DERIVED) $(PROJECT)
