@@ -1,67 +1,133 @@
-# Zoomies
+<div align="center">
 
-A tiny macOS **menu bar app** that puts a little animal in your menu bar and turns your CPU usage into a live animation — **the busier your Mac, the faster it runs.** 🐾
+# 🐾 Zoomies
 
-Click it to switch animals, open **Settings**, hit **Surprise Me**, or quit. Simple, lightweight, and fun.
+**A tiny macOS menu bar app that turns your CPU load into a sprinting animal.**
 
-## Features
+The busier your Mac, the faster it runs.
 
-- **Live load animation** — animation speed scales with system load (~3 fps idle -> ~18 fps under heavy load).
-- **5 animals** — Cat, plus Dog, Rabbit, Horse, and Parrot 🦜. Switch from the menu or the Settings gallery; **Surprise Me** picks one at random. Your choice is remembered.
-- **Settings window** — a native macOS settings window: visual animal gallery, a **speed-sensitivity** slider, a **CPU / Memory / either** source toggle, an optional **menu-bar percentage** readout, and launch-at-login.
-- **Featherweight & safe** — runs as a background agent (no Dock icon), reads only aggregate CPU/memory stats via public macOS APIs. No private APIs, no kernel extensions.
-- **Respectful** — adapts to light/dark menu bars automatically, and honors the system **Reduce Motion** setting.
+[![macOS](https://img.shields.io/badge/macOS-14%2B-black?logo=apple&logoColor=white)](https://github.com/KartikLabhshetwar/zoomies/releases)
+[![Swift](https://img.shields.io/badge/Swift-5.0-orange?logo=swift&logoColor=white)](https://swift.org)
+[![Release](https://img.shields.io/github/v/release/KartikLabhshetwar/zoomies?color=brightgreen)](https://github.com/KartikLabhshetwar/zoomies/releases/latest)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-## Requirements
+</div>
 
-- macOS 14 or later
-- [Xcode](https://developer.apple.com/xcode/) 15+ (uses the bundled Swift toolchain)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
+---
 
-## Quick start
+## Download
+
+| File | Chip | macOS |
+|------|------|-------|
+| [Zoomies-1.0_arm64.dmg](https://github.com/KartikLabhshetwar/zoomies/releases/download/v1.0/Zoomies-1.0_arm64.dmg) | Apple Silicon (M1/M2/M3/M4) | 14+ |
+| [Zoomies-1.0_x86_64.dmg](https://github.com/KartikLabhshetwar/zoomies/releases/download/v1.0/Zoomies-1.0_x86_64.dmg) | Intel | 14+ |
+
+1. Download the DMG for your chip
+2. Open it and drag **Zoomies.app** into `/Applications`
+3. Launch it — the animal appears in your menu bar instantly
+
+> **Tip:** If macOS says the app can't be opened, go to **System Settings → Privacy & Security** and click **Open Anyway**. Zoomies is notarized by Apple.
+
+---
+
+## What it does
+
+Zoomies lives in your menu bar as an animated animal. Its animation speed scales in real time with your CPU (or memory) load — idle Mac, slow trot; compiling a big project, full sprint.
+
+Click the animal to:
+- **Switch animals** — Horse, Dog, Rabbit, Parrot, or Cat
+- **Open Settings** — gallery picker, speed slider, CPU/Memory toggle, percentage readout, launch at login
+- **Surprise Me** — picks a random animal
+- **Quit**
+
+### Features
+
+- **Live animation** — speed scales from ~3 fps (idle) to ~18 fps (heavy load)
+- **5 animals** — Horse 🐴, Dog 🐶, Rabbit 🐰, Parrot 🦜, Cat 🐱. Your last pick is remembered
+- **Settings window** — native macOS settings with a visual gallery, speed-sensitivity slider, CPU / Memory / either toggle, optional percentage readout, and launch-at-login
+- **Featherweight** — background agent (no Dock icon), uses only public macOS APIs for CPU and memory stats
+- **Adaptive** — follows light/dark menu bars and respects the **Reduce Motion** system setting
+
+---
+
+## Run locally
+
+### Prerequisites
+
+| Tool | Install |
+|------|---------|
+| Xcode 15+ | [developer.apple.com/xcode](https://developer.apple.com/xcode/) |
+| XcodeGen | `brew install xcodegen` |
+
+### Quick start
 
 ```sh
-make build   # generate the Xcode project + build the app
-make run      # build and launch it — look at the top-right of your menu bar
+git clone https://github.com/KartikLabhshetwar/zoomies.git
+cd zoomies
+make run
 ```
 
-## Commands
+`make run` generates the Xcode project, builds the app, and launches it. The animal will appear in the top-right of your menu bar.
 
-Run `make` (or `make help`) anytime to list these:
+To stress-test the animation (watch it sprint):
 
-| Command | What it does |
-| --- | --- |
-| `make build` | Build the app (Debug, unsigned) |
-| `make run` | Build, then launch Zoomies |
-| `make test` | Run the unit test suite (18 tests) |
-| `make stop` | Quit the running app |
-| `make sprites` | Regenerate the animal sprite frames |
-| `make install` | Copy `Zoomies.app` into `/Applications` and launch it |
-| `make project` | Regenerate `Zoomies.xcodeproj` from `project.yml` |
-| `make clean` | Remove `build/` and the generated project |
+```sh
+yes > /dev/null &   # spin up a core
+# when done:
+killall yes
+```
 
-The built app lands at `build/Build/Products/Debug/Zoomies.app`.
+### All commands
+
+```sh
+make            # list all commands
+make build      # build (Debug, unsigned) → build/Build/Products/Debug/Zoomies.app
+make run        # build + launch
+make test       # run the unit test suite
+make stop       # quit the running app
+make install    # copy to /Applications and launch
+make sprites    # regenerate animal sprite frames into the asset catalog
+make project    # regenerate Zoomies.xcodeproj from project.yml
+make clean      # remove build/ and the generated project
+```
+
+---
 
 ## How it works
 
-- **`CPUMonitor`** samples aggregate CPU load every ~2s via the public mach `host_statistics` API and publishes a normalized `0.0–1.0` value.
-- **`SpeedMapping`** turns that load into a target frame rate (idle 3 fps -> max 18 fps).
-- **`SpriteAnimator`** cycles the active animal's template-PNG frames on the menu bar item, re-pacing only when the speed actually changes (so it stays smooth).
-- **`MenuController`** builds the click menu (CPU %, animal picker, launch-at-login via `SMAppService`, quit) and persists your choice.
+```
+CPU/Memory load  →  CPUMonitor  →  SpeedMapping  →  SpriteAnimator  →  NSStatusItem
+```
 
-Pure logic lives in a `ZoomiesCore` library and is unit-tested; the AppKit `NSStatusItem` wiring lives in the app target.
+- **`CPUMonitor`** — samples aggregate CPU load every ~2 s via the public mach `host_statistics` API and emits a normalized `0.0–1.0` value
+- **`SpeedMapping`** — maps load to a target frame rate (3–18 fps), with an adjustable sensitivity curve from Settings
+- **`SpriteAnimator`** — advances the active animal's PNG frames on the menu bar item, re-pacing only when speed changes
+- **`MenuController`** — builds the click menu and persists your animal choice and settings
+
+Pure logic lives in a `ZoomiesCore` library target (unit-tested, no AppKit dependency). The AppKit wiring (`NSStatusItem`, `NSMenu`) lives in the app target.
+
+---
 
 ## Project structure
 
-```text
-Sources/ZoomiesCore/      # pure, tested logic: CPUMonitor, SpeedMapping, AnimalLibrary
-Sources/Zoomies/          # AppKit app: AppDelegate, SpriteAnimator, FrameLoader, MenuController
-  Assets.xcassets/ 
-Tools/SpriteGenerator/    # build-time Core Graphics tool that draws the sprites
-Tests/ZoomiesCoreTests/   # unit tests
-project.yml               # XcodeGen project definition
-Makefile                  # build / run / test helpers
 ```
+zoomies/
+├── Sources/
+│   ├── ZoomiesCore/        # Pure logic: CPUMonitor, SpeedMapping, AnimalLibrary
+│   └── Zoomies/            # AppKit app: AppDelegate, SpriteAnimator, MenuController, Settings UI
+│       └── Assets.xcassets/
+├── Tests/
+│   └── ZoomiesCoreTests/   # Unit tests for core logic
+├── Tools/
+│   └── SpriteGenerator/    # Build-time tool that draws sprite frames with Core Graphics
+├── resources/              # Source sprite PNGs per animal
+├── project.yml             # XcodeGen project definition
+├── Makefile                # Build / run / test helpers
+└── scripts/
+    └── release.sh          # Build, sign, notarize, and package DMGs
+```
+
+---
 
 ## License
 
