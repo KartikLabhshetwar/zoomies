@@ -35,6 +35,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoomies.app
         INFOPLIST_FILE: Sources/Zoomies/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   ZoomiesCoreTests:
     type: bundle.unit-test
     platform: macOS
