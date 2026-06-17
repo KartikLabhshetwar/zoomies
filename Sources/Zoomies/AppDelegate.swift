@@ -4,6 +4,7 @@ import ZoomiesCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var animator: SpriteAnimator!
+    private var menuController: MenuController!
     private let cpu = CPUMonitor()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -14,11 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let saved = UserDefaults.standard.string(forKey: "selectedAnimal") ?? AnimalLibrary.default.id
         animator.setAnimal(AnimalLibrary.animal(withID: saved))
 
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Quit Zoomies", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = menu
+        menuController = MenuController(animator: animator)
+        statusItem.menu = menuController.buildMenu()
 
         cpu.onUpdate = { [weak self] load in
+            self?.menuController.updateCPU(load)
             self?.animator.setLoad(load)
         }
         cpu.start(interval: 2.0)
