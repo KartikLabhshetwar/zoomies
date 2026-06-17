@@ -15,10 +15,11 @@ public struct Animal: Equatable, Identifiable {
 
 public enum AnimalLibrary {
     public static let all: [Animal] = [
-        Animal(id: "cat", name: "Cat", frameCount: 6),
-        Animal(id: "dog", name: "Dog", frameCount: 6),
-        Animal(id: "rabbit", name: "Rabbit", frameCount: 6),
-        Animal(id: "horse", name: "Horse", frameCount: 6),
+        Animal(id: "cat", name: "Cat", frameCount: 5),
+        Animal(id: "dog", name: "Dog", frameCount: 4),
+        Animal(id: "rabbit", name: "Rabbit", frameCount: 4),
+        Animal(id: "horse", name: "Horse", frameCount: 5),
+        Animal(id: "parrot", name: "Parrot", frameCount: 10),
     ]
 
     public static let `default` = all[0]

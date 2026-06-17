@@ -2,7 +2,7 @@
 
 A tiny macOS **menu bar app** that puts a little animal in your menu bar and turns your CPU usage into a live animation — **the busier your Mac, the faster it runs.** 🐾
 
-Click it to switch between **Cat, Dog, Rabbit, and Horse**, see your live CPU %, toggle launch-at-login, or quit. That's the whole app: simple, lightweight, and fun.
+Click it to switch animals, open **Settings**, hit **Surprise Me**, or quit. Simple, lightweight, and fun.
 
 ```text
  ~=^..^=     <- idle: a lazy trot
@@ -11,11 +11,11 @@ Click it to switch between **Cat, Dog, Rabbit, and Horse**, see your live CPU %,
 
 ## Features
 
-- **Live CPU animation** — animation speed scales with system CPU load (~3 fps idle -> ~18 fps under heavy load).
-- **4 animals** — Cat, Dog, Rabbit, Horse. Switch anytime from the menu; your choice is remembered.
-- **Featherweight & safe** — runs as a background agent (no Dock icon), reads only aggregate CPU stats via public macOS APIs. No private APIs, no kernel extensions.
+- **Live load animation** — animation speed scales with system load (~3 fps idle -> ~18 fps under heavy load).
+- **5 animals** — Cat, plus Dog, Rabbit, Horse, and Parrot 🦜. Switch from the menu or the Settings gallery; **Surprise Me** picks one at random. Your choice is remembered.
+- **Settings window** — a native macOS settings window: visual animal gallery, a **speed-sensitivity** slider, a **CPU / Memory / either** source toggle, an optional **menu-bar percentage** readout, and launch-at-login.
+- **Featherweight & safe** — runs as a background agent (no Dock icon), reads only aggregate CPU/memory stats via public macOS APIs. No private APIs, no kernel extensions.
 - **Respectful** — adapts to light/dark menu bars automatically, and honors the system **Reduce Motion** setting.
-- **Clean-room art** — all sprite frames are generated procedurally (no third-party assets).
 
 ## Requirements
 
@@ -69,7 +69,7 @@ Pure logic lives in a `ZoomiesCore` library and is unit-tested; the AppKit `NSSt
 ```text
 Sources/ZoomiesCore/      # pure, tested logic: CPUMonitor, SpeedMapping, AnimalLibrary
 Sources/Zoomies/          # AppKit app: AppDelegate, SpriteAnimator, FrameLoader, MenuController
-  Assets.xcassets/        # generated template sprite frames (24 imagesets)
+  Assets.xcassets/ 
 Tools/SpriteGenerator/    # build-time Core Graphics tool that draws the sprites
 Tests/ZoomiesCoreTests/   # unit tests
 project.yml               # XcodeGen project definition

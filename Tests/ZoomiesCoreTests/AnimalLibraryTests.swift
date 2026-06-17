@@ -2,8 +2,12 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testHasFourAnimals() {
-        XCTAssertEqual(AnimalLibrary.all.count, 4)
+    func testHasFiveAnimals() {
+        XCTAssertEqual(AnimalLibrary.all.count, 5)
+    }
+    func testIncludesNewCharacters() {
+        let ids = Set(AnimalLibrary.all.map(\.id))
+        XCTAssertTrue(ids.isSuperset(of: ["cat", "dog", "rabbit", "horse", "parrot"]))
     }
     func testEveryAnimalHasFrames() {
         for animal in AnimalLibrary.all {
