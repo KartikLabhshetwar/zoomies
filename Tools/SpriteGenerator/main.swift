@@ -18,6 +18,7 @@ struct AnimalConfig {
     let ear: Ear
     let tail: Tail
     let gait: Gait
+    let mane: Bool      // horse: long neck + mane + muzzle
 }
 
 let frameCount = 6
@@ -25,10 +26,10 @@ let canvasW = 28.0
 let canvasH = 22.0
 
 let animals: [AnimalConfig] = [
-    AnimalConfig(id: "cat",    bodyW: 0.46, bodyH: 0.26, headR: 0.13, legLen: 0.30, lineW: 2.0, ear: .pointy, tail: .longCurved, gait: .gallop),
-    AnimalConfig(id: "dog",    bodyW: 0.50, bodyH: 0.30, headR: 0.15, legLen: 0.30, lineW: 2.4, ear: .floppy, tail: .shortUp,    gait: .gallop),
-    AnimalConfig(id: "rabbit", bodyW: 0.40, bodyH: 0.32, headR: 0.15, legLen: 0.24, lineW: 2.2, ear: .longUp, tail: .puff,       gait: .bound),
-    AnimalConfig(id: "horse",  bodyW: 0.58, bodyH: 0.30, headR: 0.14, legLen: 0.40, lineW: 2.6, ear: .pointy, tail: .flowing,    gait: .gallop),
+    AnimalConfig(id: "cat",    bodyW: 0.46, bodyH: 0.26, headR: 0.13, legLen: 0.30, lineW: 2.0, ear: .pointy, tail: .longCurved, gait: .gallop, mane: false),
+    AnimalConfig(id: "dog",    bodyW: 0.50, bodyH: 0.30, headR: 0.15, legLen: 0.30, lineW: 2.4, ear: .floppy, tail: .shortUp,    gait: .gallop, mane: false),
+    AnimalConfig(id: "rabbit", bodyW: 0.40, bodyH: 0.32, headR: 0.15, legLen: 0.24, lineW: 2.2, ear: .longUp, tail: .puff,       gait: .bound,  mane: false),
+    AnimalConfig(id: "horse",  bodyW: 0.60, bodyH: 0.30, headR: 0.13, legLen: 0.42, lineW: 2.6, ear: .pointy, tail: .flowing,    gait: .gallop, mane: true),
 ]
 
 let black = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -56,8 +57,12 @@ func render(_ cfg: AnimalConfig, frame: Int, scale: Double) -> CGImage {
     let hipY = groundY + legLen + bob
     let bodyCX = canvasW * 0.42
     let bodyCY = hipY + bodyH * 0.35
-    let headCX = bodyCX + bodyW / 2 + headR * 0.2
-    let headCY = bodyCY + bodyH * 0.25
+    var headCX = bodyCX + bodyW / 2 + headR * 0.2
+    var headCY = bodyCY + bodyH * 0.25
+    if cfg.mane {                     // horse: head raised and forward on a long neck
+        headCX += headR * 0.7
+        headCY += bodyH * 0.5
+    }
 
     // Legs (behind body)
     func leg(_ hipX: Double, _ phase: Double) {
@@ -83,10 +88,32 @@ func render(_ cfg: AnimalConfig, frame: Int, scale: Double) -> CGImage {
 
     // Body
     ctx.fillEllipse(in: CGRect(x: bodyCX - bodyW / 2, y: bodyCY - bodyH / 2, width: bodyW, height: bodyH))
-    // Neck wedge into head
-    ctx.fill(CGRect(x: bodyCX + bodyW * 0.2, y: bodyCY, width: bodyW * 0.35, height: bodyH * 0.5))
+    // Neck
+    if cfg.mane {
+        // long neck rising to the raised head (horse)
+        ctx.setLineWidth(bodyH * 0.62)
+        ctx.move(to: CGPoint(x: bodyCX + bodyW * 0.20, y: bodyCY))
+        ctx.addLine(to: CGPoint(x: headCX - headR * 0.4, y: headCY - headR * 0.3))
+        ctx.strokePath()
+    } else {
+        ctx.fill(CGRect(x: bodyCX + bodyW * 0.2, y: bodyCY, width: bodyW * 0.35, height: bodyH * 0.5))
+    }
     // Head
     ctx.fillEllipse(in: CGRect(x: headCX - headR, y: headCY - headR, width: headR * 2, height: headR * 2))
+    // Horse muzzle + mane
+    if cfg.mane {
+        // muzzle: snout pointing forward and slightly down
+        ctx.fillEllipse(in: CGRect(x: headCX + headR * 0.2, y: headCY - headR * 0.85,
+                                   width: headR * 1.5, height: headR * 1.05))
+        // mane: filled wedge down the back of the neck
+        ctx.beginPath()
+        ctx.move(to: CGPoint(x: headCX - headR * 0.2, y: headCY + headR * 1.1))
+        ctx.addLine(to: CGPoint(x: bodyCX + bodyW * 0.30, y: bodyCY + bodyH * 0.55))
+        ctx.addLine(to: CGPoint(x: bodyCX + bodyW * 0.14, y: bodyCY + bodyH * 0.15))
+        ctx.addLine(to: CGPoint(x: headCX - headR * 0.55, y: headCY + headR * 0.1))
+        ctx.closePath()
+        ctx.fillPath()
+    }
     // Ears
     drawEar(ctx, cfg.ear, headCX, headCY + headR * 0.7, headR)
     // Tail
