@@ -4,11 +4,6 @@ A tiny macOS **menu bar app** that puts a little animal in your menu bar and tur
 
 Click it to switch animals, open **Settings**, hit **Surprise Me**, or quit. Simple, lightweight, and fun.
 
-```text
- ~=^..^=     <- idle: a lazy trot
- =^o.o^=>>>  <- busy: full zoomies!
-```
-
 ## Features
 
 - **Live load animation** — animation speed scales with system load (~3 fps idle -> ~18 fps under heavy load).
@@ -28,14 +23,6 @@ Click it to switch animals, open **Settings**, hit **Surprise Me**, or quit. Sim
 ```sh
 make build   # generate the Xcode project + build the app
 make run      # build and launch it — look at the top-right of your menu bar
-```
-
-Then look at your menu bar (top-right) for the running animal. To see it sprint, give your CPU something to chew on:
-
-```sh
-yes > /dev/null &   # repeat a few times to load several cores
-# ...watch the animal speed up...
-killall yes          # stop the load
 ```
 
 ## Commands
@@ -74,17 +61,7 @@ Tools/SpriteGenerator/    # build-time Core Graphics tool that draws the sprites
 Tests/ZoomiesCoreTests/   # unit tests
 project.yml               # XcodeGen project definition
 Makefile                  # build / run / test helpers
-docs/superpowers/         # design spec & implementation plan
 ```
-
-## Customizing
-
-- **Animal art:** edit `Tools/SpriteGenerator/main.swift` (per-animal proportions, gait, ears, tail), then `make sprites && make run`.
-- **Speed feel:** tweak `idleFPS` / `maxFPS` in `Sources/ZoomiesCore/SpeedMapping.swift`.
-
-## Notes
-
-- This is an **unsigned local build**. macOS may show *"requires approval"* for **Launch at Login** (a rule for unsigned apps) — it's handled gracefully and works fully once the app is signed and installed to `/Applications`. On first open you may need to right-click -> **Open** to get past Gatekeeper.
 
 ## License
 
