@@ -7,6 +7,7 @@ final class SpriteAnimator {
     private var index = 0
     private var load: Double = 0
     private var timer: Timer?
+    private var scheduledFPS: Int = -1   // fps bucket the current timer was scheduled for
 
     private var reduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -23,9 +24,17 @@ final class SpriteAnimator {
         restartTimer()
     }
 
+    /// Updates the load and re-paces the animation only when the speed bucket
+    /// actually changes — avoids resetting the frame clock on every CPU sample
+    /// (which would otherwise cause a periodic stutter).
     func setLoad(_ load: Double) {
         self.load = load
-        restartTimer()
+        if reduceMotion {
+            if timer != nil { restartTimer() }   // entered reduce-motion: drop to static
+        } else {
+            let fps = Int(SpeedMapping.fps(forLoad: load).rounded())
+            if fps != scheduledFPS { restartTimer() }
+        }
     }
 
     func start() { restartTimer() }
@@ -33,6 +42,7 @@ final class SpriteAnimator {
     func stop() {
         timer?.invalidate()
         timer = nil
+        scheduledFPS = -1
     }
 
     private func restartTimer() {
@@ -40,11 +50,14 @@ final class SpriteAnimator {
         timer = nil
         guard !frames.isEmpty else { return }
         // Respect Reduce Motion: show a single static frame, no animation.
-        guard !reduceMotion else { showCurrentFrame(); return }
+        guard !reduceMotion else { showCurrentFrame(); scheduledFPS = -1; return }
+        scheduledFPS = Int(SpeedMapping.fps(forLoad: load).rounded())
         let interval = SpeedMapping.frameInterval(forLoad: load)
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.advance()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     private func advance() {
