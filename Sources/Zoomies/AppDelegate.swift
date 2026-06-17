@@ -9,7 +9,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let cpu = CPUMonitor()
     private let settings = AppSettings.shared
     private var cancellables = Set<AnyCancellable>()
-    private var lastLoad: Double = 0
+    private var lastCPULoad: Double = 0
+    private var lastMemoryLoad: Double = 0
+    private var lastRawLoad: Double = 0   // unscaled, for display
+    private var lastLoad: Double = 0      // scaled by sensitivity, for animation
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -32,21 +35,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.$showPercentage
             .sink { [weak self] _ in self?.refreshTitle() }
             .store(in: &cancellables)
+        // Immediately recompute speed when source or sensitivity changes — don't wait
+        // for the next 2-second CPU sample, which would make the slider feel broken.
+        settings.$source
+            .dropFirst()
+            .sink { [weak self] _ in self?.recomputeLoad() }
+            .store(in: &cancellables)
+        settings.$sensitivity
+            .dropFirst()
+            .sink { [weak self] _ in self?.recomputeLoad() }
+            .store(in: &cancellables)
 
         cpu.onUpdate = { [weak self] cpuLoad in
             guard let self else { return }
-            let memory = MemorySampler.usedFraction()
-            let raw = self.settings.source.effective(cpu: cpuLoad, memory: memory)
-            self.lastLoad = self.settings.scaled(raw)
-            self.animator.setLoad(self.lastLoad)
-            self.refreshTitle()
-            self.menuController.setLoadText("\(self.settings.source.displayName): \(self.percent)%")
+            self.lastCPULoad = cpuLoad
+            self.lastMemoryLoad = MemorySampler.usedFraction()
+            self.recomputeLoad()
         }
         cpu.start(interval: 2.0)
         animator.start()
     }
 
-    private var percent: Int { Int((lastLoad * 100).rounded()) }
+    private var percent: Int { Int((lastRawLoad * 100).rounded()) }
+
+    private func recomputeLoad() {
+        lastRawLoad = settings.source.effective(cpu: lastCPULoad, memory: lastMemoryLoad)
+        lastLoad = settings.scaled(lastRawLoad)
+        animator.setLoad(lastLoad)
+        refreshTitle()
+        menuController.setLoadText("\(settings.source.displayName): \(percent)%")
+    }
 
     private func refreshTitle() {
         statusItem.button?.title = settings.showPercentage ? " \(percent)%" : ""
