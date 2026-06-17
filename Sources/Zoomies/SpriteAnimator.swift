@@ -15,6 +15,17 @@ final class SpriteAnimator {
 
     init(statusItem: NSStatusItem) {
         self.statusItem = statusItem
+        // React immediately when the user toggles Reduce Motion (instead of
+        // waiting for the next CPU sample).
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(accessibilityChanged),
+            name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil)
+    }
+
+    deinit {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     func setAnimal(_ animal: Animal) {
@@ -43,6 +54,10 @@ final class SpriteAnimator {
         timer?.invalidate()
         timer = nil
         scheduledFPS = -1
+    }
+
+    @objc private func accessibilityChanged() {
+        restartTimer()
     }
 
     private func restartTimer() {

@@ -7,10 +7,12 @@ enum FrameLoader {
 
     static func load(_ animal: Animal) -> [NSImage] {
         animal.frameNames.compactMap { name in
-            guard let image = NSImage(named: name) else {
+            guard let original = NSImage(named: name) else {
                 NSLog("Zoomies: missing frame \(name)")
                 return nil
             }
+            // Copy so we don't mutate the shared cached asset-catalog image.
+            guard let image = original.copy() as? NSImage else { return nil }
             image.isTemplate = true
             let aspect = image.size.height > 0 ? image.size.width / image.size.height : 1
             image.size = NSSize(width: iconHeight * aspect, height: iconHeight)
