@@ -42,9 +42,11 @@ public final class CPUMonitor {
     public func start(interval: TimeInterval = 2.0) {
         stop()
         sample() // prime the previous snapshot
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.sample()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     public func stop() {
