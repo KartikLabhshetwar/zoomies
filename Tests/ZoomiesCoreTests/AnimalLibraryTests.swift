@@ -20,6 +20,15 @@ final class AnimalLibraryTests: XCTestCase {
         XCTAssertEqual(dog.color(withID: "white").id, "white")
     }
 
+    // Switching from one animal to another whose palette lacks the current color must snap to
+    // the new animal's default — the validation AppSettings/AppDelegate rely on when the user
+    // picks a different creature (regression guard for "switching animals kept the old pet").
+    func testSwitchingAnimalSnapsInvalidColorToDefault() {
+        let fox = AnimalLibrary.animal(withID: "fox")           // colors: red, white
+        XCTAssertEqual(fox.color(withID: "yellow").id, fox.defaultColorID)  // rubber-duck's yellow
+        XCTAssertEqual(fox.color(withID: "white").id, "white")  // a shared/valid color is kept
+    }
+
     func testWalkFastGapsAreFlagged() {
         let noFast: Set<String> = ["monkey", "skeleton", "totoro"]
         for a in AnimalLibrary.all {

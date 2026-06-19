@@ -106,7 +106,7 @@ make clean       # remove build/ and the generated project
 ```
 CPU/GPU/RAM load → Monitors → PetController.setLoad
                                           │
-  CADisplayLink (display-synced) → PetAnimator → NSStatusItem.button.image
+  Timer (30 Hz, .common mode) → PetAnimator → NSStatusItem.button.image
                                           ↑
                         MouseDirectionMonitor (cursor facing)
 ```
@@ -116,7 +116,7 @@ CPU/GPU/RAM load → Monitors → PetController.setLoad
 - **`MemorySampler`** — reads active + wired + compressor pages via `vm_statistics64`
 - **`SpeedMapping`** — maps 0–1 load through a cubic ease-in curve, so light/medium load stays calm and the speed-up concentrates near full load
 - **`PetAnimator`** — pure, AppKit-free engine: maps eased load to one of four gait states (idle/walk/walk_fast/run) with up/down hysteresis, and advances the current cycle's frames by their native GIF durations, sped up by load × the Speed setting. Fully unit-tested.
-- **`PetController`** — runs one `CADisplayLink` (display-synced, capped at 30 Hz) that ticks the `PetAnimator`; load and speed only move its inputs, so the link is never torn down and the cycle never resets (no stutter). Reassigns the button image only when the visible frame actually changes. Owns the `MouseDirectionMonitor` and flips the left/right frame sets on direction change.
+- **`PetController`** — runs one main-thread `Timer` (~30 Hz, `.common` run-loop mode) that ticks the `PetAnimator`; load and speed only move its inputs, so the cycle never resets (no stutter). A `Timer` is used rather than `CADisplayLink` because a status-item button's window is never key/active, so an `NSView`-vended display link never fires for it. Reassigns the button image only when the visible frame actually changes. Owns the `MouseDirectionMonitor` and flips the left/right frame sets on direction change.
 - **`MouseDirectionMonitor`** — global `NSEvent` monitor for `.mouseMoved`; feeds horizontal deltas into `DirectionTracker` (debounced 1.5 pt threshold) and calls back when facing flips
 - **`FrameLoader`** — decodes each gait's GIF (`Pets/<pet>/<color>_<state>.gif`) with `CGImageSource`, reading per-frame durations; registers every frame of every state to one shared scale and bottom-center baseline (no jump or wobble between gaits), scales to ~22 pt × backingScaleFactor, and pre-mirrors for the right-facing set
 - **`MenuController`** — click menu with live CPU / GPU / RAM bar graphs

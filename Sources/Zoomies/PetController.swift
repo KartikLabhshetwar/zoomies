@@ -4,12 +4,13 @@ import ZoomiesCore
 
 /// Drives the GIF-based pet inside the menu-bar status item.
 ///
-/// A single display-synced `CADisplayLink` ticks a pure `PetAnimator`, which picks the gait
-/// state (idle/walk/walk_fast/run) from system load and advances frames by their native GIF
-/// durations. System load and the user's speed only move the animator's inputs — the link is
-/// never torn down and the stride is never reset, so load changes glide. Each tick reassigns
-/// the button image only when the visible frame actually changes, keeping a menu-bar pet cheap
-/// to animate.
+/// A main-thread `Timer` (run in `.common` mode so it keeps firing during menu tracking)
+/// ticks a pure `PetAnimator`, which picks the gait state (idle/walk/walk_fast/run) from
+/// system load and advances frames by their native GIF durations. A `Timer` is used rather
+/// than `CADisplayLink`: a status-item button's window is never key/active, so an
+/// `NSView`-vended display link never fires for it. System load and the user's speed only
+/// move the animator's inputs, so the cycle never resets. Each tick reassigns the button
+/// image only when the visible frame actually changes, keeping a menu-bar pet cheap.
 final class PetController {
     private weak var statusItem: NSStatusItem?
 
@@ -20,7 +21,10 @@ final class PetController {
     private var load: Double = 0
     private var speed: Double = 1.0
 
-    private var displayLink: CADisplayLink?
+    /// ~30 Hz is smooth to the eye and light on battery; the source GIFs only run ~8 fps,
+    /// so the animator advances frames by their own durations regardless of tick rate.
+    private static let tickInterval: TimeInterval = 1.0 / 30.0
+    private var timer: Timer?
     private var lastTimestamp: CFTimeInterval = 0
     // Last image shown, so the button image is only reassigned when it truly changes.
     private var shownState: PetState?
@@ -47,7 +51,7 @@ final class PetController {
 
     deinit {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
-        displayLink?.invalidate()
+        timer?.invalidate()
         cursorMonitor.stop()
     }
 
@@ -65,31 +69,34 @@ final class PetController {
     func setLoad(_ load: Double)  { self.load = load;  animator.setLoad(load) }
     func setSpeed(_ speed: Double) { self.speed = speed; animator.setSpeed(speed) }
 
-    func start() { startDisplayLink(); cursorMonitor.start() }
+    func start() { startTicking(); cursorMonitor.start() }
 
     func stop() {
-        displayLink?.invalidate(); displayLink = nil
+        timer?.invalidate(); timer = nil
         cursorMonitor.stop()
     }
 
-    // MARK: - Display link
+    // MARK: - Tick loop
 
-    private func startDisplayLink() {
-        guard displayLink == nil, let view = statusItem?.button else { return }
-        let link = view.displayLink(target: self, selector: #selector(tick(_:)))
-        // A menu-bar pet shouldn't burn battery at 120 Hz; 30 Hz is smooth to the eye.
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: 30, preferred: 30)
-        link.isPaused = reduceMotion
-        link.add(to: .main, forMode: .common)
-        displayLink = link
+    private func startTicking() {
+        guard timer == nil else { return }
         lastTimestamp = 0
+        let t = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        // .common keeps the pet animating while a menu is open or the user is scrolling.
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
         render(force: true)
     }
 
-    @objc private func tick(_ link: CADisplayLink) {
+    private func tick() {
+        // Reduce-motion: hold a calm frame, but keep facing responsive via render().
+        guard !reduceMotion else { render(); return }
+        let now = CACurrentMediaTime()
         // Clamp dt so a long gap (display sleep/wake) can't fling the cycle.
-        let raw = lastTimestamp > 0 ? link.timestamp - lastTimestamp : link.duration
-        lastTimestamp = link.timestamp
+        let raw = lastTimestamp > 0 ? now - lastTimestamp : Self.tickInterval
+        lastTimestamp = now
         if animator.advance(by: min(max(raw, 0), 0.1)) {
             syncDurations()   // state changed — hand the animator the new cycle's durations
         }
@@ -97,7 +104,6 @@ final class PetController {
     }
 
     @objc private func accessibilityChanged() {
-        displayLink?.isPaused = reduceMotion
         lastTimestamp = 0                 // resume cleanly, no dt spike
         render(force: true)
     }

@@ -69,15 +69,16 @@ enum FrameLoader {
         let canvasWpx = max(contentWpx + padPx, 1)
         let ptSize = NSSize(width: CGFloat(canvasWpx) / backing, height: iconHeight)
 
-        // 3. Render each frame against its state's shared box; mirror for right-facing.
+        // 3. Render each frame against its state's shared box. The source art faces RIGHT,
+        //    so the rendered frames are the right-facing set; mirror them for left.
         var states: [PetState: StateClip] = [:]
         for (state, r) in raw {
-            let left = r.frames.map { f in
+            let right = r.frames.map { f in
                 render(f, box: r.box, scale: scale,
                        canvasWpx: canvasWpx, canvasHpx: canvasHpx,
                        contentWpx: contentWpx, ptSize: ptSize)
             }
-            let right = left.map { mirrored($0) }
+            let left = right.map { mirrored($0) }
             states[state] = StateClip(left: left, right: right, durations: r.durations)
         }
         return PetClips(states: states, thumbnail: loadThumbnail(animal, colorID: colorID))

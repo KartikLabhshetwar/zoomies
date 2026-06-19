@@ -15,7 +15,15 @@ final class AppSettings: ObservableObject {
     @Published var speed: Double { didSet { defaults.set(speed, forKey: Keys.speed) } }
     @Published var showPercentage: Bool { didSet { defaults.set(showPercentage, forKey: Keys.showPct) } }
     /// Which animal roams the menu bar (an AnimalLibrary id).
-    @Published var animalID: String { didSet { defaults.set(animalID, forKey: Keys.animalID) } }
+    @Published var animalID: String {
+        didSet {
+            defaults.set(animalID, forKey: Keys.animalID)
+            // Keep the color valid for the new animal so the picker and the pet stay in sync.
+            // (Runs in didSet, where animalID is already committed.)
+            let valid = AnimalLibrary.animal(withID: animalID).color(withID: colorID).id
+            if valid != colorID { colorID = valid }
+        }
+    }
     /// Which color variant of the selected animal roams the menu bar.
     @Published var colorID: String { didSet { defaults.set(colorID, forKey: Keys.colorID) } }
 
