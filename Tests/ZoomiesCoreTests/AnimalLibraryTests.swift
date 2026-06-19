@@ -2,42 +2,48 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testRosterContainsAllAnimals() {
-        let ids = AnimalLibrary.all.map(\.id)
-        XCTAssertEqual(ids, ["oneko", "dog", "fox", "chocobo"])
+    func testRosterHas22Creatures() {
+        XCTAssertEqual(AnimalLibrary.all.count, 22)
     }
 
-    func testDefaultIsCat() {
-        XCTAssertEqual(AnimalLibrary.default.id, "oneko")
-        XCTAssertEqual(AnimalLibrary.default.name, "Cat")
-    }
-
-    func testOnekoUsesAdrydLayout() {
-        XCTAssertFalse(AnimalLibrary.default.isClassic, "oneko uses the adryd layout, not classic")
-    }
-
-    func testAllOthersUseClassicLayout() {
-        for animal in AnimalLibrary.all where animal.id != "oneko" {
-            XCTAssertTrue(animal.isClassic, "\(animal.id) should use the classic Neko Archive layout")
+    func testEveryAnimalHasValidDefaultColor() {
+        for a in AnimalLibrary.all {
+            XCTAssertFalse(a.colors.isEmpty, "\(a.id) has no colors")
+            XCTAssertTrue(a.colors.contains { $0.id == a.defaultColorID },
+                          "\(a.id) default \(a.defaultColorID) not in palette")
         }
+    }
+
+    func testColorWithIDFallsBackToDefault() {
+        let dog = AnimalLibrary.animal(withID: "dog")
+        XCTAssertEqual(dog.color(withID: "nope").id, dog.defaultColorID)
+        XCTAssertEqual(dog.color(withID: "white").id, "white")
+    }
+
+    func testWalkFastGapsAreFlagged() {
+        let noFast: Set<String> = ["monkey", "skeleton", "totoro"]
+        for a in AnimalLibrary.all {
+            XCTAssertEqual(a.hasWalkFast, !noFast.contains(a.id), "hasWalkFast wrong for \(a.id)")
+        }
+    }
+
+    func testHumanizeIdToName() {
+        XCTAssertEqual(PetNaming.humanize("rubber-duck"), "Rubber Duck")
+        XCTAssertEqual(PetNaming.humanize("socks_black"), "Socks Black")
+        XCTAssertEqual(PetNaming.humanize("dog"), "Dog")
+    }
+
+    func testUnknownAnimalFallsBackToDefault() {
+        XCTAssertEqual(AnimalLibrary.animal(withID: "ghost").id, AnimalLibrary.default.id)
+    }
+
+    func testSkeletonHasTenColorsHorseEleven() {
+        XCTAssertEqual(AnimalLibrary.animal(withID: "skeleton").colors.count, 10)
+        XCTAssertEqual(AnimalLibrary.animal(withID: "horse").colors.count, 11)
     }
 
     func testIDsAreUnique() {
         let ids = AnimalLibrary.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)
-    }
-
-    func testEveryAnimalHasAName() {
-        for animal in AnimalLibrary.all {
-            XCTAssertFalse(animal.name.isEmpty, "\(animal.id) is missing a display name")
-        }
-    }
-
-    func testUnknownIDFallsBackToDefault() {
-        XCTAssertEqual(AnimalLibrary.animal(withID: "dragon"), AnimalLibrary.default)
-    }
-
-    func testKnownIDResolves() {
-        XCTAssertEqual(AnimalLibrary.animal(withID: "chocobo").name, "Chocobo")
     }
 }
