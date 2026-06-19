@@ -2,8 +2,14 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testRosterHas22Creatures() {
-        XCTAssertEqual(AnimalLibrary.all.count, 22)
+    func testRosterIsTwelveWalkers() {
+        XCTAssertEqual(AnimalLibrary.all.count, 12)
+        // Non-leg-walkers must be gone.
+        let removed: Set<String> = ["chicken", "cockatiel", "snake", "snail", "morph",
+                                    "clippy", "rocky", "zappy", "rubber-duck", "mod"]
+        for id in removed {
+            XCTAssertFalse(AnimalLibrary.all.contains { $0.id == id }, "\(id) should be removed")
+        }
     }
 
     func testEveryAnimalHasValidDefaultColor() {
@@ -25,7 +31,7 @@ final class AnimalLibraryTests: XCTestCase {
     // picks a different creature (regression guard for "switching animals kept the old pet").
     func testSwitchingAnimalSnapsInvalidColorToDefault() {
         let fox = AnimalLibrary.animal(withID: "fox")           // colors: red, white
-        XCTAssertEqual(fox.color(withID: "yellow").id, fox.defaultColorID)  // rubber-duck's yellow
+        XCTAssertEqual(fox.color(withID: "yellow").id, fox.defaultColorID)  // a color fox lacks
         XCTAssertEqual(fox.color(withID: "white").id, "white")  // a shared/valid color is kept
     }
 

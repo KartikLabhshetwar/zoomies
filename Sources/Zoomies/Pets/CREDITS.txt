@@ -5,22 +5,19 @@ These pet animations come from the webpets project
 (https://github.com/sankalpaacharya/webpets). The majority of the assets
 originate from vscode-pets (https://github.com/tonybaloney/vscode-pets).
 
-Artists:
-- Cat animations — seethingswarm (https://seethingswarm.itch.io/catset)
+Zoomies ships only the creatures that walk on legs. Artists for those:
 - Dog animations — NVPH Studio (https://nvph-studio.itch.io/dog-animation-4-different-dogs)
 - Akita inu — Kevin Huang (https://github.com/kevin2huang)
 - Fox — Elthen (https://twitter.com/pixelthen)
-- Clippy, Rocky, Zappy, rubber duck, snake, cockatiel, Ferris the crab,
-  and Mod the dotnet bot — Marc Duiker (https://twitter.com/marcduiker)
-- Ferris the crab original concept — Karen Rustad Tolva (https://www.aldeka.net)
+- Ferris the crab — Marc Duiker (https://twitter.com/marcduiker);
+  original concept by Karen Rustad Tolva (https://www.aldeka.net)
 - Turtle — enkeefe (via https://www.pixilart.com/draw)
 - Horse — adapted by Chris Kent (https://github.com/thechriskent) from
   assets by Onfe (https://onfe.itch.io/horse-sprite-with-rider-asset-pack)
-- Snail — Kennet Shin (https://github.com/WoofWoof0)
 - Panda — Jessie Ferris (https://github.com/jeferris)
 - Skeleton — adapted by Chris Kent from assets by MonoPixelArt
   (https://monopixelart.itch.io/)
 
-See https://github.com/sankalpaacharya/webpets and the upstream vscode-pets
-repository for full licensing details. The dog assets ship an explicit
-license at dog/license.txt.
+Deno, monkey, rat, vampire, and totoro assets are also from the webpets /
+vscode-pets sets; see those repositories for full licensing details. The dog
+assets ship an explicit license at dog/license.txt.

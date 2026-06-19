@@ -44,10 +44,9 @@ public enum PetNaming {
 }
 
 public enum AnimalLibrary {
+    // Only creatures that walk on legs. Birds, the snake, the snail, and the legless
+    // mascots (clippy, rocky, zappy, mod, morph, rubber-duck) are intentionally excluded.
     public static let all: [Animal] = [
-        make("chicken",     ["brown", "white"]),
-        make("clippy",      ["black", "brown", "green", "yellow"]),
-        make("cockatiel",   ["brown", "gray"]),
         make("crab",        ["red"]),
         make("deno",        ["green"]),
         make("dog",         ["akita", "black", "brown", "red", "white"]),
@@ -55,21 +54,14 @@ public enum AnimalLibrary {
         make("horse",       ["black", "brown", "magical", "paint_beige", "paint_black",
                              "paint_brown", "socks_beige", "socks_black", "socks_brown",
                              "warrior", "white"]),
-        make("mod",         ["purple"]),
         make("monkey",      ["gray"], hasWalkFast: false),
-        make("morph",       ["purple"]),
         make("panda",       ["black", "brown"]),
         make("rat",         ["brown", "gray", "white"]),
-        make("rocky",       ["gray"]),
-        make("rubber-duck", ["yellow"]),
         make("skeleton",    ["blue", "brown", "green", "orange", "pink", "purple",
                              "red", "warrior", "white", "yellow"], hasWalkFast: false),
-        make("snail",       ["brown"]),
-        make("snake",       ["green"]),
         make("totoro",      ["gray"], hasWalkFast: false),
         make("turtle",      ["green", "orange"]),
         make("vampire",     ["converted", "countess", "girl"], defaultColor: "countess"),
-        make("zappy",       ["yellow"]),
     ]
 
     public static let `default` = all.first { $0.id == "dog" } ?? all[0]

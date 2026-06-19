@@ -13,7 +13,13 @@ let media = URL(fileURLWithPath: args[1]).appendingPathComponent("public/media")
 let dest  = URL(fileURLWithPath: args[2])
 let fm = FileManager.default
 let states = ["idle", "walk", "walk_fast", "run"]
-let skip: Set<String> = ["background", "icon", "walkers_wide"]
+// Skip non-pet folders and creatures that don't walk on legs (birds, snake, snail, and the
+// legless mascots) — Zoomies only ships leg-walkers.
+let skip: Set<String> = [
+    "background", "icon", "walkers_wide",
+    "chicken", "cockatiel", "snake", "snail", "morph",
+    "clippy", "rocky", "zappy", "rubber-duck", "mod",
+]
 
 try? fm.createDirectory(at: dest, withIntermediateDirectories: true)
 var report: [(String, [String], Bool)] = []   // pet, colors, hasWalkFast
