@@ -1,161 +1,212 @@
 import AppKit
-import CoreGraphics
+import ImageIO
 import ZoomiesCore
 
+/// Decodes the webpets GIFs for one pet+color into menu-bar-sized animation frames.
+///
+/// Each state (idle/walk/walk_fast/run) is a separate GIF with its own frame count and
+/// per-frame durations. The frames of all states are registered to a single scale and a
+/// shared bottom-center baseline so the pet never jumps or resizes when its gait changes,
+/// and within a state every frame shares one bounding box so the body doesn't wobble as
+/// limbs extend. Frames are pre-mirrored for right-facing (the art faces left).
 enum FrameLoader {
-    static let iconHeight: CGFloat = 26
+    /// Height in points the tallest frame is scaled to. The menu bar is ~22pt; shorter
+    /// states render smaller and stay planted on the shared baseline.
+    static let iconHeight: CGFloat = 22
+    /// Hard cap on rendered width so very wide creatures (snake, horse) stay tidy next to
+    /// the percentage label.
+    static let maxWidth: CGFloat = 46
+    /// Gap (points) kept on the trailing edge so the sprite doesn't hug the % label.
+    static let trailingPad: CGFloat = 4
 
-    /// Headroom (points) reserved at the top of the icon canvas for the run cycle's gentle
-    /// vertical bob. Deliberately small: a big bob lifts the "gathered" (legs-tucked) pose
-    /// clear off the baseline and reads as a glitch on a tiny icon, so the bounce is just
-    /// enough to add life. Run sprites are drawn `iconHeight - bobLiftPoints` tall so the
-    /// body can rise this far without changing the status item's height or clipping the art.
-    static let bobLiftPoints: CGFloat = 1.5
-    /// The bob is quantised into this many lift steps, each pre-rendered once — smooth to
-    /// the eye, yet only a handful of cached images.
-    static let bobLevels = 6
-    /// Poses in the run cycle — the source sheets only ship two per direction.
-    static let runFrameCount = 2
+    struct StateClip {
+        let left: [NSImage]
+        let right: [NSImage]
+        let durations: [Double]
+    }
+    struct PetClips {
+        let states: [PetState: StateClip]
+        let thumbnail: NSImage?
+    }
 
-    // MARK: - Animation scripts
-
-    // Each entry is (col, row, ticks) in the clean sheet's 32px-pitch grid.
-    // row 0 = visual top of the sheet; ticks are counted at 60 Hz.
-    //
-    // Classic (Neko Archive) row 0 layout:
-    //   col 0=sit  1=alert  2=scratchA  3=scratchB  4=tired  6=sleepA  7=sleepB
-    //
-    // Adryd (oneko.js) layout per nekoFrames CSS-sprite map:
-    //   still=(3,3)  alert=(7,3)  scratchSelf=(5,0)/(6,0)
-    //   tired=(3,2)  sleeping=(2,0)/(2,1)
-
-    private static let classicScript: [(col: Int, row: Int, ticks: Int)] = [
-        (0, 0, 120),                           // sit      2 s
-        (1, 0,  30),                           // alert    0.5 s
-        (2, 0,   8), (3, 0,   8),             // scratch  ×1
-        (2, 0,   8), (3, 0,   8),             // scratch  ×2
-        (2, 0,   8), (3, 0,   8),             // scratch  ×3
-        (2, 0,   8), (3, 0,   8),             // scratch  ×4
-        (2, 0,   8), (3, 0,   8),             // scratch  ×5
-        (2, 0,   8), (3, 0,   8),             // scratch  ×6
-        (0, 0,  60),                           // sit      1 s
-        (4, 0,  60),                           // tired    1 s
-        (6, 0,  20), (7, 0,  20),             // sleep    ×1
-        (6, 0,  20), (7, 0,  20),             // sleep    ×2
-        (6, 0,  20), (7, 0,  20),             // sleep    ×3
-        (6, 0,  20), (7, 0,  20),             // sleep    ×4
-        (6, 0,  20), (7, 0,  20),             // sleep    ×5
-        (6, 0,  20), (7, 0,  20),             // sleep    ×6
-        (0, 0,  60),                           // sit      1 s
-    ]
-
-    private static let onekoScript: [(col: Int, row: Int, ticks: Int)] = [
-        (3, 3, 120),                           // sit      2 s
-        (7, 3,  30),                           // alert    0.5 s
-        (5, 0,   8), (6, 0,   8),             // scratch  ×1
-        (5, 0,   8), (6, 0,   8),             // scratch  ×2
-        (5, 0,   8), (6, 0,   8),             // scratch  ×3
-        (5, 0,   8), (6, 0,   8),             // scratch  ×4
-        (5, 0,   8), (6, 0,   8),             // scratch  ×5
-        (5, 0,   8), (6, 0,   8),             // scratch  ×6
-        (3, 3,  60),                           // sit      1 s
-        (3, 2,  60),                           // tired    1 s
-        (2, 0,  20), (2, 1,  20),             // sleep    ×1
-        (2, 0,  20), (2, 1,  20),             // sleep    ×2
-        (2, 0,  20), (2, 1,  20),             // sleep    ×3
-        (2, 0,  20), (2, 1,  20),             // sleep    ×4
-        (2, 0,  20), (2, 1,  20),             // sleep    ×5
-        (2, 0,  20), (2, 1,  20),             // sleep    ×6
-        (3, 3,  60),                           // sit      1 s
+    private static let stateFile: [PetState: String] = [
+        .idle: "idle", .walk: "walk", .walkFast: "walk_fast", .run: "run"
     ]
 
     // MARK: - Public API
 
-    /// Pre-built (image, ticks) animation sequence for the pet — sit, alert, scratch,
-    /// tired, sleep, then repeat. Drive by decrementing ticks each 60 Hz frame.
-    static func loadSequence(_ animal: Animal) -> [(image: NSImage, ticks: Int)] {
-        guard let sheet = loadSheet(animal) else { return [] }
-        let script = animal.isClassic ? classicScript : onekoScript
-        return script.map { (col, row, ticks) in
-            (cropCell(from: sheet, col: col, row: row), ticks)
+    /// Decode every state's GIF for one pet+color and render registered, pre-mirrored frames.
+    static func loadClips(_ animal: Animal, colorID: String) -> PetClips {
+        let color = animal.color(withID: colorID).id
+
+        // 1. Decode raw frames + durations per state (walkFast falls back to run when absent),
+        //    and the per-state union of frame content boxes.
+        struct Raw { let frames: [CGImage]; let durations: [Double]; let box: Box }
+        var raw: [PetState: Raw] = [:]
+        for state in PetState.allCases {
+            var key = state
+            if state == .walkFast, !animal.hasWalkFast { key = .run }
+            guard let url = gifURL(pet: animal.id, color: color, state: stateFile[key]!) else { continue }
+            let decoded = decodeGIF(url)
+            guard !decoded.frames.isEmpty else { continue }
+            let box = unionBox(decoded.frames.map(contentBox))
+            raw[state] = Raw(frames: decoded.frames, durations: decoded.durations, box: box)
         }
+        guard !raw.isEmpty else {
+            return PetClips(states: [:], thumbnail: loadThumbnail(animal, colorID: colorID))
+        }
+
+        // 2. One scale + canvas across ALL states: tallest content fills iconHeight, with a
+        //    width cap so wide pets don't sprawl.
+        let backing = NSScreen.main?.backingScaleFactor ?? 2
+        let maxH = CGFloat(raw.values.map { $0.box.h }.max() ?? 1)
+        let maxW = CGFloat(raw.values.map { $0.box.w }.max() ?? 1)
+        let scale = min((iconHeight * backing) / max(maxH, 1),
+                        (maxWidth * backing) / max(maxW, 1))
+        let canvasHpx = Int((iconHeight * backing).rounded())
+        let contentWpx = Int((maxW * scale).rounded())
+        let padPx = Int((trailingPad * backing).rounded())
+        let canvasWpx = max(contentWpx + padPx, 1)
+        let ptSize = NSSize(width: CGFloat(canvasWpx) / backing, height: iconHeight)
+
+        // 3. Render each frame against its state's shared box. The source art faces RIGHT,
+        //    so the rendered frames are the right-facing set; mirror them for left.
+        var states: [PetState: StateClip] = [:]
+        for (state, r) in raw {
+            let right = r.frames.map { f in
+                render(f, box: r.box, scale: scale,
+                       canvasWpx: canvasWpx, canvasHpx: canvasHpx,
+                       contentWpx: contentWpx, ptSize: ptSize)
+            }
+            let left = right.map { mirrored($0) }
+            states[state] = StateClip(left: left, right: right, durations: r.durations)
+        }
+        return PetClips(states: states, thumbnail: loadThumbnail(animal, colorID: colorID))
     }
 
-    /// Pre-rendered run-cycle variants for the gait animator. For each facing direction and
-    /// each of the two run poses, the pose is rendered at every bob lift level
-    /// (`0 ... bobLevels`). At runtime `PetController` just picks `[frame][level]` each
-    /// display tick, so the continuous vertical bounce — the thing that makes a two-frame
-    /// run read as a smooth, soothing gait instead of a flat A/B flip — costs only an image
-    /// swap, never a per-frame CoreGraphics redraw (keeps the pet cheap to animate).
-    ///
-    /// Run-pose positions (stored facing left; mirror for right):
-    ///   Classic (Neko Archive): row 2, cols 4 & 5 — the side-on gallop in every classic
-    ///   sheet (dog, fox, chocobo).
-    ///   oneko (adryd): col 4, rows 2 & 3 — the West/left run, W:[[-4,-2],[-4,-3]].
-    ///
-    /// Returns `(left:, right:)` indexed `[frame][level]` so facing flips without reloading.
-    static func loadRunVariants(_ animal: Animal) -> (left: [[NSImage]], right: [[NSImage]]) {
-        guard let sheet = loadSheet(animal) else { return ([], []) }
-        let positions: [(col: Int, row: Int)] = animal.isClassic
-            ? [(4, 2), (5, 2)]   // west run — left-facing in all classic sheets
-            : [(4, 2), (4, 3)]   // oneko.js West run W:[[-4,-2],[-4,-3]]
-        let cells = positions.compactMap { p in
-            sheet.cropping(to: CGRect(x: p.col * 32, y: p.row * 32, width: 32, height: 32))
+    /// Picker thumbnail: prefer the designed `icon_<color>.png`; otherwise show the actual
+    /// first idle frame (so color swatches always reflect the real color); finally fall back
+    /// to the pet's generic icon.
+    static func loadThumbnail(_ animal: Animal, colorID: String) -> NSImage? {
+        let color = animal.color(withID: colorID).id
+        if let url = Bundle.main.url(forResource: "icon_\(color)", withExtension: "png",
+                                     subdirectory: "Pets/\(animal.id)"),
+           let img = NSImage(contentsOf: url) {
+            return img
         }
-        guard cells.count == positions.count else { return ([], []) }
-        // Register both poses to ONE shared tight bounding box. Without this the legs-tucked
-        // "gathered" pose sits higher inside its 32px cell than the legs-out "extended" pose,
-        // so the animal jumps and the gathered frame looks detached — on every animal.
-        // Cropping to the union box locks the cycle to a common baseline AND lets the sprite
-        // fill the icon instead of swimming in per-cell padding.
-        let frames = cropToSharedBounds(cells)
-        let spriteH = iconHeight - bobLiftPoints
-        let left: [[NSImage]] = frames.map { cell in
-            // One image per lift step; the animator's phase picks among them so the body
-            // rises and falls continuously between the two leg poses.
-            (0...bobLevels).map { level in
-                let lift = bobLiftPoints * CGFloat(level) / CGFloat(bobLevels)
-                return retinaImage(cell, contentHeight: spriteH, lift: lift)
-            }
+        if let idle = idleFrameThumbnail(pet: animal.id, color: color) {
+            return idle
         }
-        let right = left.map { frame in frame.map { mirrored($0) } }
-        return (left: left, right: right)
+        if let url = Bundle.main.url(forResource: "icon", withExtension: "png",
+                                     subdirectory: "Pets/\(animal.id)") {
+            return NSImage(contentsOf: url)
+        }
+        return nil
     }
 
-    /// Crop every frame to the SAME tight alpha bounding box (the union across all frames)
-    /// so a multi-frame cycle stays registered to one baseline and fills the icon instead of
-    /// floating inside per-cell padding. Ported from the sprite importer's `cropToBounds`.
-    private static func cropToSharedBounds(_ images: [CGImage]) -> [CGImage] {
-        var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
-        for img in images {
-            let w = img.width, h = img.height, bpr = w * 4
-            guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
-                                      bytesPerRow: bpr, space: CGColorSpaceCreateDeviceRGB(),
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            else { continue }
-            ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
-            guard let data = ctx.data else { continue }
-            let ptr = data.bindMemory(to: UInt8.self, capacity: bpr * h)
-            for y in 0..<h {
-                for x in 0..<w where ptr[(y * w + x) * 4 + 3] > 10 {
-                    minX = min(minX, x); maxX = max(maxX, x)
-                    minY = min(minY, y); maxY = max(maxY, y)
-                }
+    // MARK: - GIF decode
+
+    private static func gifURL(pet: String, color: String, state: String) -> URL? {
+        Bundle.main.url(forResource: "\(color)_\(state)", withExtension: "gif",
+                        subdirectory: "Pets/\(pet)")
+    }
+
+    private static func decodeGIF(_ url: URL) -> (frames: [CGImage], durations: [Double]) {
+        guard let data = try? Data(contentsOf: url),
+              let src = CGImageSourceCreateWithData(data as CFData, nil) else { return ([], []) }
+        var frames: [CGImage] = []
+        var durations: [Double] = []
+        for i in 0..<CGImageSourceGetCount(src) {
+            guard let img = CGImageSourceCreateImageAtIndex(src, i, nil) else { continue }
+            frames.append(img)
+            let props = CGImageSourceCopyPropertiesAtIndex(src, i, nil) as? [CFString: Any]
+            let gif = props?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            let unclamped = gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double
+            let clamped = gif?[kCGImagePropertyGIFDelayTime] as? Double
+            let d = (unclamped.flatMap { $0 > 0 ? $0 : nil }) ?? clamped ?? 0.125
+            durations.append(d < 0.02 ? 0.125 : d)
+        }
+        return (frames, durations)
+    }
+
+    // MARK: - Registration / rendering
+
+    /// Tight alpha bounding box in CoreGraphics bottom-left pixel coordinates:
+    /// (x from left, y from bottom, w, h).
+    private struct Box { let x: Int; let y: Int; let w: Int; let h: Int }
+
+    private static func contentBox(_ img: CGImage) -> Box {
+        let w = img.width, h = img.height, bpr = w * 4
+        guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: bpr, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return Box(x: 0, y: 0, w: w, h: h)
+        }
+        ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+        guard let data = ctx.data else { return Box(x: 0, y: 0, w: w, h: h) }
+        let p = data.bindMemory(to: UInt8.self, capacity: bpr * h)
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in 0..<h {
+            for x in 0..<w where p[(y * w + x) * 4 + 3] > 10 {
+                if x < minX { minX = x }; if x > maxX { maxX = x }
+                if y < minY { minY = y }; if y > maxY { maxY = y }
             }
         }
-        guard maxX >= minX, maxY >= minY else { return images }
-        let cw = maxX - minX + 1, ch = maxY - minY + 1
-        return images.map { img in
-            guard let ctx = CGContext(data: nil, width: cw, height: ch, bitsPerComponent: 8,
-                                      bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            else { return img }
-            ctx.clear(CGRect(x: 0, y: 0, width: cw, height: ch))
-            // CoreGraphics origin is bottom-left; flip so the cropped region lands upright.
-            let srcH = img.height
-            ctx.draw(img, in: CGRect(x: -minX, y: -(srcH - ch - minY), width: img.width, height: srcH))
-            return ctx.makeImage() ?? img
+        guard maxX >= minX, maxY >= minY else { return Box(x: 0, y: 0, w: w, h: h) }
+        return Box(x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1)
+    }
+
+    /// Smallest box covering every frame's content, so all frames of a state share one
+    /// placement (no horizontal wobble as limbs extend).
+    private static func unionBox(_ boxes: [Box]) -> Box {
+        guard let first = boxes.first else { return Box(x: 0, y: 0, w: 1, h: 1) }
+        var minX = first.x, minY = first.y
+        var maxX = first.x + first.w, maxY = first.y + first.h
+        for b in boxes.dropFirst() {
+            minX = min(minX, b.x); minY = min(minY, b.y)
+            maxX = max(maxX, b.x + b.w); maxY = max(maxY, b.y + b.h)
         }
+        return Box(x: minX, y: minY, w: maxX - minX, h: maxY - minY)
+    }
+
+    /// Draw `img` (scaled) into a fixed canvas so its `box` sits on the baseline (y=0) and is
+    /// horizontally centered within the content region. All bottom-left coords — no flips.
+    private static func render(_ img: CGImage, box: Box, scale: CGFloat,
+                              canvasWpx: Int, canvasHpx: Int, contentWpx: Int,
+                              ptSize: NSSize) -> NSImage {
+        let targetLeft = (CGFloat(contentWpx) - CGFloat(box.w) * scale) / 2
+        let drawX = targetLeft - CGFloat(box.x) * scale
+        let drawY = -CGFloat(box.y) * scale
+        guard let ctx = CGContext(data: nil, width: canvasWpx, height: canvasHpx,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return NSImage(size: ptSize)
+        }
+        ctx.interpolationQuality = .high   // smooth downscale of mid-res pixel art
+        ctx.clear(CGRect(x: 0, y: 0, width: canvasWpx, height: canvasHpx))
+        ctx.draw(img, in: CGRect(x: drawX, y: drawY,
+                                 width: CGFloat(img.width) * scale,
+                                 height: CGFloat(img.height) * scale))
+        let out = NSImage(size: ptSize)
+        if let cg = ctx.makeImage() {
+            let rep = NSBitmapImageRep(cgImage: cg)
+            rep.size = ptSize
+            out.addRepresentation(rep)
+        }
+        return out
+    }
+
+    private static func idleFrameThumbnail(pet: String, color: String) -> NSImage? {
+        guard let url = gifURL(pet: pet, color: color, state: "idle"),
+              let data = try? Data(contentsOf: url),
+              let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
+        let box = contentBox(img)
+        // contentBox is bottom-left; cropping(to:) wants top-left.
+        let rect = CGRect(x: box.x, y: img.height - box.y - box.h, width: box.w, height: box.h)
+        let cropped = img.cropping(to: rect) ?? img
+        return NSImage(cgImage: cropped, size: NSSize(width: box.w, height: box.h))
     }
 
     private static func mirrored(_ image: NSImage) -> NSImage {
@@ -166,80 +217,8 @@ enum FrameLoader {
         t.translateX(by: size.width, yBy: 0)
         t.scaleX(by: -1, yBy: 1)
         t.concat()
-        image.draw(at: .zero, from: NSRect(origin: .zero, size: size),
-                   operation: .copy, fraction: 1)
+        image.draw(at: .zero, from: NSRect(origin: .zero, size: size), operation: .copy, fraction: 1)
         out.unlockFocus()
-        return out
-    }
-
-    /// Sit/idle frame at icon size for the Settings animal-picker thumbnail.
-    static func loadIdlePreview(_ animal: Animal) -> NSImage? {
-        guard let sheet = loadSheet(animal) else { return nil }
-        let (col, row) = animal.isClassic ? (0, 0) : (3, 3)
-        return cropCell(from: sheet, col: col, row: row)
-    }
-
-    // MARK: - Sheet loading
-
-    private static func loadSheet(_ animal: Animal) -> CGImage? {
-        guard let url  = Bundle.main.url(forResource: "\(animal.id)_sheet",
-                                          withExtension: "png",
-                                          subdirectory: "Sprites"),
-              let data = try? Data(contentsOf: url),
-              let src  = CGImageSourceCreateWithData(data as CFData, nil) else {
-            NSLog("Zoomies: sheet not found — Sprites/\(animal.id)_sheet.png")
-            return nil
-        }
-        return CGImageSourceCreateImageAtIndex(src, 0, nil)
-    }
-
-    // MARK: - Cell extraction & scaling
-
-    private static func cropCell(from sheet: CGImage, col: Int, row: Int) -> NSImage {
-        let rect = CGRect(x: col * 32, y: row * 32, width: 32, height: 32)
-        if let cell = sheet.cropping(to: rect) {
-            return retinaImage(cell)
-        }
-        return NSImage(size: NSSize(width: iconHeight, height: iconHeight))
-    }
-
-    /// Scale a raw CGImage into the menu-bar icon at Retina resolution with
-    /// nearest-neighbour interpolation so pixel art stays crisp. The artwork is drawn
-    /// `contentHeight` points tall (≤ `iconHeight`) and `lift` points up from the bottom of
-    /// an always-`iconHeight`-tall canvas — that headroom is what lets the run cycle bounce
-    /// without changing the status item's height. `trailingPad` keeps the pet off the % label.
-    static func retinaImage(_ src: CGImage,
-                            contentHeight: CGFloat = iconHeight,
-                            lift: CGFloat = 0) -> NSImage {
-        let trailingPad: CGFloat = 4
-        let scale   = NSScreen.main?.backingScaleFactor ?? 2.0
-        let aspect  = src.width > 0 ? Double(src.width) / Double(src.height) : 1
-        let ptW     = (Double(contentHeight) * aspect).rounded()
-        let pxW     = Int((ptW * scale).rounded())
-        let pxH     = Int((Double(contentHeight) * scale).rounded())   // artwork height
-        let canvasH = Int((Double(iconHeight) * scale).rounded())      // full icon height
-        let pxPad   = Int((trailingPad * scale).rounded())
-        let pxLift  = Int((Double(lift) * scale).rounded())
-        guard pxW > 0, pxH > 0 else {
-            return NSImage(size: NSSize(width: ptW + trailingPad, height: Double(iconHeight)))
-        }
-
-        let totalPxW = pxW + pxPad
-        let ctx = CGContext(data: nil, width: totalPxW, height: canvasH,
-                            bitsPerComponent: 8, bytesPerRow: 0,
-                            space: CGColorSpaceCreateDeviceRGB(),
-                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        ctx.interpolationQuality = .none
-        ctx.clear(CGRect(x: 0, y: 0, width: totalPxW, height: canvasH))
-        ctx.draw(src, in: CGRect(x: 0, y: pxLift, width: pxW, height: pxH))   // CG origin = bottom-left
-
-        let totalPtW = ptW + trailingPad
-        let out = NSImage(size: NSSize(width: totalPtW, height: Double(iconHeight)))
-        if let cg = ctx.makeImage() {
-            let rep = NSBitmapImageRep(cgImage: cg)
-            rep.size = NSSize(width: totalPtW, height: Double(iconHeight))
-            out.addRepresentation(rep)
-        }
         return out
     }
 }

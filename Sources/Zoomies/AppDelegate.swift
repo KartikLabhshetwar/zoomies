@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastGPULoad: Double = 0
     private var lastMemoryLoad: Double = 0
     private var lastRawLoad: Double = 0   // 0...1 system load — drives both the % and the run speed
+    private var petApplyScheduled = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -28,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menuController.buildMenu()
 
         pet = PetController(statusItem: statusItem)
-        pet.setAnimal(AnimalLibrary.animal(withID: settings.animalID))
+        pet.setPet(AnimalLibrary.animal(withID: settings.animalID), colorID: settings.colorID)
         pet.setSpeed(settings.speed)
 
         settings.$showPercentage
@@ -43,11 +44,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .dropFirst()
             .sink { [weak self] speed in self?.pet.setSpeed(speed) }
             .store(in: &cancellables)
-        // Switch the roaming critter live when the user picks a different animal.
-        settings.$animalID
-            .dropFirst()
-            .sink { [weak self] id in self?.pet.setAnimal(AnimalLibrary.animal(withID: id)) }
-            .store(in: &cancellables)
+        // Switch the roaming critter live when the user picks a different animal. Keep the
+        // current color if the new pet has it, else snap to its default (which re-fires
+        // through the colorID sink). Either way exactly one setPet runs.
+        // Re-apply the pet whenever the animal or color changes. Both go through a single
+        // coalesced async hop: @Published publishes in willSet, so reading `settings`
+        // synchronously inside these sinks would see stale values — the cause of "switching
+        // animals showed the previously-selected one". The async block runs after every
+        // willSet/didSet has committed, so it always reads the final animal + color.
+        settings.$animalID.dropFirst().sink { [weak self] _ in self?.applyPetSoon() }.store(in: &cancellables)
+        settings.$colorID.dropFirst().sink { [weak self] _ in self?.applyPetSoon() }.store(in: &cancellables)
 
         cpu.onUpdate = { [weak self] cpuLoad in
             guard let self else { return }
@@ -66,6 +72,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         gpu.start()   // 2 s default, sampled off the main thread (see GPUMonitor)
         refreshTitle()
         pet.start()
+    }
+
+    /// Apply the selected animal+color once, on the next runloop hop, reading the committed
+    /// settings. Coalesced so a paired animal+color change (e.g. switching to an animal whose
+    /// palette lacks the current color) results in exactly one reload.
+    private func applyPetSoon() {
+        guard !petApplyScheduled else { return }
+        petApplyScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.petApplyScheduled = false
+            let animal = AnimalLibrary.animal(withID: self.settings.animalID)
+            self.pet.setPet(animal, colorID: animal.color(withID: self.settings.colorID).id)
+        }
     }
 
     private var percent: Int { Int((lastRawLoad * 100).rounded()) }

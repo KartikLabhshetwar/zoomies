@@ -36,6 +36,12 @@ struct AboutPane: View {
                 }
                 .padding(.vertical, 4)
             }
+
+            Section("Credits") {
+                Text("Pets from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set by Sankalpa Acharya, built on vscode-pets. Per-artist attribution ships in Pets/CREDITS.txt.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

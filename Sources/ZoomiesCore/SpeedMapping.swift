@@ -9,13 +9,11 @@ public enum SpeedMapping {
     public static let minRenderFPS: Double = 1
     public static let maxRenderFPS: Double = 30
 
-    /// Shapes the load→FPS response. The run cycle is only two frames, so a straight
-    /// linear ramp makes the pet look like it's sprinting at just 20–30% load. Raising
-    /// the load to this power eases the curve in: light/medium load stays a calm trot
-    /// and the speed-up concentrates near full load, where the Mac is actually busy.
-    /// This matters most for the RAM source, which idles around 60% on a healthy Mac —
-    /// the cubic curve keeps the pet relaxed there and only winds up under real pressure.
-    /// 1.0 = linear (old behavior); higher = gentler low end.
+    /// Shapes the load→pace response. A straight linear ramp makes the pet look like it's
+    /// sprinting at 20–30% load, so we raise load to this power to ease the curve in: light
+    /// and medium load stay a calm trot, and the speed-up concentrates near full load where
+    /// the Mac is actually busy. Matters most for the RAM source, which idles ~60% on a
+    /// healthy Mac. 1.0 = linear; higher = gentler low end.
     public static let loadCurveExponent: Double = 3
 
     /// Load-driven frame rate (no user speed applied): idleFPS at 0 load → maxFPS at full,

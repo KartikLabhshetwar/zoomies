@@ -11,7 +11,7 @@ settings:
     CODE_SIGN_IDENTITY: ""
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGNING_ALLOWED: "NO"
-    MARKETING_VERSION: "1.0"
+    MARKETING_VERSION: "0.1.1"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   ZoomiesCore:
@@ -31,8 +31,8 @@ targets:
       - path: Sources/Zoomies
         excludes:
           - "Info.plist"
-          - "Sprites"
-      - path: Sources/Zoomies/Sprites
+          - "Pets"
+      - path: Sources/Zoomies/Pets
         type: folder
     dependencies:
       - target: ZoomiesCore
@@ -59,6 +59,16 @@ schemes:
         ZoomiesCoreTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - ZoomiesCoreTests
+  # Tests the pure engine in isolation (no app target) — lets the core stay verifiable
+  # even while the app side is mid-refactor.
+  ZoomiesCoreTests:
+    build:
+      targets:
+        ZoomiesCoreTests: [test]
     test:
       config: Debug
       targets:
