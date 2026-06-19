@@ -45,6 +45,7 @@ public final class CPUMonitor {
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.sample()
         }
+        timer.tolerance = interval * 0.1   // ~10% leeway lets macOS coalesce wakeups (battery)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }

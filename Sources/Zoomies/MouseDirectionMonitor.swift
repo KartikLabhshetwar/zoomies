@@ -1,7 +1,7 @@
 import AppKit
 import ZoomiesCore
 
-/// Watches horizontal cursor movement anywhere on screen and reports when the cat
+/// Watches horizontal cursor movement anywhere on screen and reports when the pet
 /// should turn to face a new direction.
 ///
 /// Uses a global event monitor for `.mouseMoved`. Mouse events (unlike keyboard

@@ -2,29 +2,42 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testHasSingleOnekoAnimal() {
-        XCTAssertEqual(AnimalLibrary.all.count, 1)
-        XCTAssertEqual(AnimalLibrary.all.first?.id, "oneko")
+    func testRosterContainsAllAnimals() {
+        let ids = AnimalLibrary.all.map(\.id)
+        XCTAssertEqual(ids, ["oneko", "dog", "fox", "dalmatian", "browndog", "chocobo"])
     }
-    func testDefaultIsOneko() {
+
+    func testDefaultIsCat() {
         XCTAssertEqual(AnimalLibrary.default.id, "oneko")
-        XCTAssertEqual(AnimalLibrary.default.name, "Oneko")
+        XCTAssertEqual(AnimalLibrary.default.name, "Cat")
     }
-    func testOnekoHasTwoFrames() {
-        let oneko = AnimalLibrary.animal(withID: "oneko")
-        XCTAssertEqual(oneko.frameCount, 2)
-        XCTAssertEqual(oneko.frameNames, ["oneko_0", "oneko_1"])
+
+    func testOnekoUsesAdrydLayout() {
+        XCTAssertFalse(AnimalLibrary.default.isClassic, "oneko uses the adryd layout, not classic")
     }
-    func testFrameNameFormat() {
-        let oneko = AnimalLibrary.default
-        XCTAssertEqual(oneko.frameName(0), "oneko_0")
-        XCTAssertEqual(oneko.frameName(1), "oneko_1")
+
+    func testAllOthersUseClassicLayout() {
+        for animal in AnimalLibrary.all where animal.id != "oneko" {
+            XCTAssertTrue(animal.isClassic, "\(animal.id) should use the classic Neko Archive layout")
+        }
     }
+
     func testIDsAreUnique() {
         let ids = AnimalLibrary.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)
     }
+
+    func testEveryAnimalHasAName() {
+        for animal in AnimalLibrary.all {
+            XCTAssertFalse(animal.name.isEmpty, "\(animal.id) is missing a display name")
+        }
+    }
+
     func testUnknownIDFallsBackToDefault() {
         XCTAssertEqual(AnimalLibrary.animal(withID: "dragon"), AnimalLibrary.default)
+    }
+
+    func testKnownIDResolves() {
+        XCTAssertEqual(AnimalLibrary.animal(withID: "chocobo").name, "Chocobo")
     }
 }

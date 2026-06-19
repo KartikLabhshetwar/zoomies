@@ -19,6 +19,8 @@ targets:
     platform: macOS
     sources:
       - Sources/ZoomiesCore
+    dependencies:
+      - sdk: IOKit.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoomies.core
@@ -29,6 +31,9 @@ targets:
       - path: Sources/Zoomies
         excludes:
           - "Info.plist"
+          - "Sprites"
+      - path: Sources/Zoomies/Sprites
+        type: folder
     dependencies:
       - target: ZoomiesCore
     settings:

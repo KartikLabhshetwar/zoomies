@@ -1,23 +1,24 @@
 public struct Animal: Equatable, Identifiable {
     public let id: String
     public let name: String
-    public let frameCount: Int
+    /// true = Neko Archive layout; false = adryd oneko.js layout.
+    public let isClassic: Bool
 
-    public init(id: String, name: String, frameCount: Int) {
+    public init(id: String, name: String, isClassic: Bool) {
         self.id = id
         self.name = name
-        self.frameCount = frameCount
+        self.isClassic = isClassic
     }
-
-    public func frameName(_ index: Int) -> String { "\(id)_\(index)" }
-    public var frameNames: [String] { (0..<frameCount).map(frameName) }
 }
 
 public enum AnimalLibrary {
-    // The one and only sprite: oneko, the classic "Neko" cat (oneko.js by adryd, MIT).
-    // Two frames make up its left-facing run cycle, paced by system load.
     public static let all: [Animal] = [
-        Animal(id: "oneko", name: "Oneko", frameCount: 2),
+        Animal(id: "oneko",     name: "Cat",       isClassic: false),
+        Animal(id: "dog",       name: "Dog",       isClassic: true),
+        Animal(id: "fox",       name: "Fox",       isClassic: true),
+        Animal(id: "dalmatian", name: "Dalmatian", isClassic: true),
+        Animal(id: "browndog",  name: "Brown Dog", isClassic: true),
+        Animal(id: "chocobo",   name: "Chocobo",   isClassic: true),
     ]
 
     public static let `default` = all[0]

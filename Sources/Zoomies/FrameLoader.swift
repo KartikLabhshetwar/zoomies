@@ -1,40 +1,170 @@
 import AppKit
+import CoreGraphics
 import ZoomiesCore
 
 enum FrameLoader {
-    /// Height the menu bar icon is scaled to (points).
-    static let iconHeight: CGFloat = 18
+    static let iconHeight: CGFloat = 26
 
-    static func load(_ animal: Animal) -> [NSImage] {
-        animal.frameNames.compactMap { name in
-            guard let original = NSImage(named: name) else {
-                NSLog("Zoomies: missing frame \(name)")
-                return nil
-            }
-            // Copy so we don't mutate the shared cached asset-catalog image.
-            guard let image = original.copy() as? NSImage else { return nil }
-            // oneko is rendered in its real colors — not as a monochrome template.
-            image.isTemplate = false
-            let aspect = image.size.height > 0 ? image.size.width / image.size.height : 1
-            image.size = NSSize(width: iconHeight * aspect, height: iconHeight)
-            return image
+    // MARK: - Animation scripts
+
+    // Each entry is (col, row, ticks) in the clean sheet's 32px-pitch grid.
+    // row 0 = visual top of the sheet; ticks are counted at 60 Hz.
+    //
+    // Classic (Neko Archive) row 0 layout:
+    //   col 0=sit  1=alert  2=scratchA  3=scratchB  4=tired  6=sleepA  7=sleepB
+    //
+    // Adryd (oneko.js) layout per nekoFrames CSS-sprite map:
+    //   still=(3,3)  alert=(7,3)  scratchSelf=(5,0)/(6,0)
+    //   tired=(3,2)  sleeping=(2,0)/(2,1)
+
+    private static let classicScript: [(col: Int, row: Int, ticks: Int)] = [
+        (0, 0, 120),                           // sit      2 s
+        (1, 0,  30),                           // alert    0.5 s
+        (2, 0,   8), (3, 0,   8),             // scratch  ×1
+        (2, 0,   8), (3, 0,   8),             // scratch  ×2
+        (2, 0,   8), (3, 0,   8),             // scratch  ×3
+        (2, 0,   8), (3, 0,   8),             // scratch  ×4
+        (2, 0,   8), (3, 0,   8),             // scratch  ×5
+        (2, 0,   8), (3, 0,   8),             // scratch  ×6
+        (0, 0,  60),                           // sit      1 s
+        (4, 0,  60),                           // tired    1 s
+        (6, 0,  20), (7, 0,  20),             // sleep    ×1
+        (6, 0,  20), (7, 0,  20),             // sleep    ×2
+        (6, 0,  20), (7, 0,  20),             // sleep    ×3
+        (6, 0,  20), (7, 0,  20),             // sleep    ×4
+        (6, 0,  20), (7, 0,  20),             // sleep    ×5
+        (6, 0,  20), (7, 0,  20),             // sleep    ×6
+        (0, 0,  60),                           // sit      1 s
+    ]
+
+    private static let onekoScript: [(col: Int, row: Int, ticks: Int)] = [
+        (3, 3, 120),                           // sit      2 s
+        (7, 3,  30),                           // alert    0.5 s
+        (5, 0,   8), (6, 0,   8),             // scratch  ×1
+        (5, 0,   8), (6, 0,   8),             // scratch  ×2
+        (5, 0,   8), (6, 0,   8),             // scratch  ×3
+        (5, 0,   8), (6, 0,   8),             // scratch  ×4
+        (5, 0,   8), (6, 0,   8),             // scratch  ×5
+        (5, 0,   8), (6, 0,   8),             // scratch  ×6
+        (3, 3,  60),                           // sit      1 s
+        (3, 2,  60),                           // tired    1 s
+        (2, 0,  20), (2, 1,  20),             // sleep    ×1
+        (2, 0,  20), (2, 1,  20),             // sleep    ×2
+        (2, 0,  20), (2, 1,  20),             // sleep    ×3
+        (2, 0,  20), (2, 1,  20),             // sleep    ×4
+        (2, 0,  20), (2, 1,  20),             // sleep    ×5
+        (2, 0,  20), (2, 1,  20),             // sleep    ×6
+        (3, 3,  60),                           // sit      1 s
+    ]
+
+    // MARK: - Public API
+
+    /// Pre-built (image, ticks) animation sequence for the pet — sit, alert, scratch,
+    /// tired, sleep, then repeat. Drive by decrementing ticks each 60 Hz frame.
+    static func loadSequence(_ animal: Animal) -> [(image: NSImage, ticks: Int)] {
+        guard let sheet = loadSheet(animal) else { return [] }
+        let script = animal.isClassic ? classicScript : onekoScript
+        return script.map { (col, row, ticks) in
+            (cropCell(from: sheet, col: col, row: row), ticks)
         }
     }
 
-    /// Horizontally-mirrored copies of the given frames — used to make the cat face
-    /// right (oneko's sprites are drawn facing left).
-    static func mirrored(_ images: [NSImage]) -> [NSImage] {
-        images.map { image in
-            let size = image.size
-            let flipped = NSImage(size: size, flipped: false) { rect in
-                guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-                ctx.translateBy(x: size.width, y: 0)
-                ctx.scaleBy(x: -1, y: 1)
-                image.draw(in: rect)
-                return true
-            }
-            flipped.isTemplate = image.isTemplate
-            return flipped
+    /// Two-frame run cycle for both facing directions.
+    ///
+    /// Classic (Neko Archive): row 2, cols 4 & 5 are the pure west (left-facing) run
+    /// frames confirmed empirically across all classic sheets (dog, fox, dalmatian,
+    /// browndog, chocobo). Mirror them for the right-facing variant.
+    /// oneko (adryd): col 4, rows 2 & 3 = West/left run. Mirror for right.
+    ///
+    /// Returns `(left:, right:)` so `PetController` can flip facing without re-loading.
+    static func loadRunFrames(_ animal: Animal) -> (left: [NSImage], right: [NSImage]) {
+        guard let sheet = loadSheet(animal) else { return ([], []) }
+        let positions: [(col: Int, row: Int)] = animal.isClassic
+            ? [(4, 2), (5, 2)]   // west run — left-facing in all classic sheets
+            : [(4, 2), (4, 3)]   // oneko.js West run W:[[-4,-2],[-4,-3]]
+        let left = positions.map { cropCell(from: sheet, col: $0.col, row: $0.row) }
+        let right = left.map { mirrored($0) }
+        return (left: left, right: right)
+    }
+
+    private static func mirrored(_ image: NSImage) -> NSImage {
+        let size = image.size
+        let out = NSImage(size: size)
+        out.lockFocus()
+        let t = NSAffineTransform()
+        t.translateX(by: size.width, yBy: 0)
+        t.scaleX(by: -1, yBy: 1)
+        t.concat()
+        image.draw(at: .zero, from: NSRect(origin: .zero, size: size),
+                   operation: .copy, fraction: 1)
+        out.unlockFocus()
+        return out
+    }
+
+    /// Sit/idle frame at icon size for the Settings animal-picker thumbnail.
+    static func loadIdlePreview(_ animal: Animal) -> NSImage? {
+        guard let sheet = loadSheet(animal) else { return nil }
+        let (col, row) = animal.isClassic ? (0, 0) : (3, 3)
+        return cropCell(from: sheet, col: col, row: row)
+    }
+
+    // MARK: - Sheet loading
+
+    private static func loadSheet(_ animal: Animal) -> CGImage? {
+        guard let url  = Bundle.main.url(forResource: "\(animal.id)_sheet",
+                                          withExtension: "png",
+                                          subdirectory: "Sprites"),
+              let data = try? Data(contentsOf: url),
+              let src  = CGImageSourceCreateWithData(data as CFData, nil) else {
+            NSLog("Zoomies: sheet not found — Sprites/\(animal.id)_sheet.png")
+            return nil
         }
+        return CGImageSourceCreateImageAtIndex(src, 0, nil)
+    }
+
+    // MARK: - Cell extraction & scaling
+
+    private static func cropCell(from sheet: CGImage, col: Int, row: Int) -> NSImage {
+        let rect = CGRect(x: col * 32, y: row * 32, width: 32, height: 32)
+        if let cell = sheet.cropping(to: rect) {
+            return retinaImage(cell)
+        }
+        return NSImage(size: NSSize(width: iconHeight, height: iconHeight))
+    }
+
+    /// Scale a raw CGImage to `iconHeight` points at Retina resolution with
+    /// nearest-neighbour interpolation so pixel art stays crisp.
+    /// Adds `trailingPad` points of transparent space on the right so the pet
+    /// doesn't crowd the CPU-% title label in the status-item button.
+    static func retinaImage(_ src: CGImage) -> NSImage {
+        let trailingPad: CGFloat = 4
+        let scale  = NSScreen.main?.backingScaleFactor ?? 2.0
+        let aspect = src.width > 0 ? Double(src.width) / Double(src.height) : 1
+        let ptH    = Double(iconHeight)
+        let ptW    = (ptH * aspect).rounded()
+        let pxH    = Int((ptH * scale).rounded())
+        let pxW    = Int((ptW * scale).rounded())
+        let pxPad  = Int((trailingPad * scale).rounded())
+        guard pxW > 0, pxH > 0 else {
+            return NSImage(size: NSSize(width: ptW + trailingPad, height: ptH))
+        }
+
+        let totalPxW = pxW + pxPad
+        let ctx = CGContext(data: nil, width: totalPxW, height: pxH,
+                            bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.interpolationQuality = .none
+        ctx.clear(CGRect(x: 0, y: 0, width: totalPxW, height: pxH))
+        ctx.draw(src, in: CGRect(x: 0, y: 0, width: pxW, height: pxH))
+
+        let totalPtW = ptW + trailingPad
+        let out = NSImage(size: NSSize(width: totalPtW, height: ptH))
+        if let cg = ctx.makeImage() {
+            let rep = NSBitmapImageRep(cgImage: cg)
+            rep.size = NSSize(width: totalPtW, height: ptH)
+            out.addRepresentation(rep)
+        }
+        return out
     }
 }
