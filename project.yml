@@ -63,3 +63,13 @@ schemes:
       config: Debug
       targets:
         - ZoomiesCoreTests
+  # Tests the pure engine in isolation (no app target) — lets the core stay verifiable
+  # even while the app side is mid-refactor.
+  ZoomiesCoreTests:
+    build:
+      targets:
+        ZoomiesCoreTests: [test]
+    test:
+      config: Debug
+      targets:
+        - ZoomiesCoreTests
