@@ -5,12 +5,14 @@ import ZoomiesCore
 enum FrameLoader {
     static let iconHeight: CGFloat = 26
 
-    /// Headroom (points) reserved at the top of the icon canvas for the run cycle's
-    /// vertical bob. Run sprites are drawn `iconHeight - bobLiftPoints` tall so the body
-    /// can rise this far without changing the status item's height or clipping the art.
-    static let bobLiftPoints: CGFloat = 3
-    /// The bob is quantised into this many lift steps, each pre-rendered once. 6 ≈ one
-    /// Retina pixel per step at 2×: smooth to the eye, yet only a handful of cached images.
+    /// Headroom (points) reserved at the top of the icon canvas for the run cycle's gentle
+    /// vertical bob. Deliberately small: a big bob lifts the "gathered" (legs-tucked) pose
+    /// clear off the baseline and reads as a glitch on a tiny icon, so the bounce is just
+    /// enough to add life. Run sprites are drawn `iconHeight - bobLiftPoints` tall so the
+    /// body can rise this far without changing the status item's height or clipping the art.
+    static let bobLiftPoints: CGFloat = 1.5
+    /// The bob is quantised into this many lift steps, each pre-rendered once — smooth to
+    /// the eye, yet only a handful of cached images.
     static let bobLevels = 6
     /// Poses in the run cycle — the source sheets only ship two per direction.
     static let runFrameCount = 2
@@ -97,22 +99,63 @@ enum FrameLoader {
         let positions: [(col: Int, row: Int)] = animal.isClassic
             ? [(4, 2), (5, 2)]   // west run — left-facing in all classic sheets
             : [(4, 2), (4, 3)]   // oneko.js West run W:[[-4,-2],[-4,-3]]
+        let cells = positions.compactMap { p in
+            sheet.cropping(to: CGRect(x: p.col * 32, y: p.row * 32, width: 32, height: 32))
+        }
+        guard cells.count == positions.count else { return ([], []) }
+        // Register both poses to ONE shared tight bounding box. Without this the legs-tucked
+        // "gathered" pose sits higher inside its 32px cell than the legs-out "extended" pose,
+        // so the animal jumps and the gathered frame looks detached — on every animal.
+        // Cropping to the union box locks the cycle to a common baseline AND lets the sprite
+        // fill the icon instead of swimming in per-cell padding.
+        let frames = cropToSharedBounds(cells)
         let spriteH = iconHeight - bobLiftPoints
-        let blank = NSImage(size: NSSize(width: iconHeight, height: iconHeight))
-        let left: [[NSImage]] = positions.map { p in
-            let rect = CGRect(x: p.col * 32, y: p.row * 32, width: 32, height: 32)
-            guard let cell = sheet.cropping(to: rect) else {
-                return Array(repeating: blank, count: bobLevels + 1)
-            }
-            // One image per lift step; the animator's phase chooses among them so the body
+        let left: [[NSImage]] = frames.map { cell in
+            // One image per lift step; the animator's phase picks among them so the body
             // rises and falls continuously between the two leg poses.
-            return (0...bobLevels).map { level in
+            (0...bobLevels).map { level in
                 let lift = bobLiftPoints * CGFloat(level) / CGFloat(bobLevels)
                 return retinaImage(cell, contentHeight: spriteH, lift: lift)
             }
         }
         let right = left.map { frame in frame.map { mirrored($0) } }
         return (left: left, right: right)
+    }
+
+    /// Crop every frame to the SAME tight alpha bounding box (the union across all frames)
+    /// so a multi-frame cycle stays registered to one baseline and fills the icon instead of
+    /// floating inside per-cell padding. Ported from the sprite importer's `cropToBounds`.
+    private static func cropToSharedBounds(_ images: [CGImage]) -> [CGImage] {
+        var minX = Int.max, minY = Int.max, maxX = -1, maxY = -1
+        for img in images {
+            let w = img.width, h = img.height, bpr = w * 4
+            guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
+                                      bytesPerRow: bpr, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { continue }
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+            guard let data = ctx.data else { continue }
+            let ptr = data.bindMemory(to: UInt8.self, capacity: bpr * h)
+            for y in 0..<h {
+                for x in 0..<w where ptr[(y * w + x) * 4 + 3] > 10 {
+                    minX = min(minX, x); maxX = max(maxX, x)
+                    minY = min(minY, y); maxY = max(maxY, y)
+                }
+            }
+        }
+        guard maxX >= minX, maxY >= minY else { return images }
+        let cw = maxX - minX + 1, ch = maxY - minY + 1
+        return images.map { img in
+            guard let ctx = CGContext(data: nil, width: cw, height: ch, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return img }
+            ctx.clear(CGRect(x: 0, y: 0, width: cw, height: ch))
+            // CoreGraphics origin is bottom-left; flip so the cropped region lands upright.
+            let srcH = img.height
+            ctx.draw(img, in: CGRect(x: -minX, y: -(srcH - ch - minY), width: img.width, height: srcH))
+            return ctx.makeImage() ?? img
+        }
     }
 
     private static func mirrored(_ image: NSImage) -> NSImage {

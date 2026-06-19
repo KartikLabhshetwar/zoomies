@@ -8,7 +8,7 @@ The busier your Mac, the faster it runs.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-black?logo=apple&logoColor=white)](https://github.com/KartikLabhshetwar/zoomies/releases)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange?logo=swift&logoColor=white)](https://swift.org)
-(https://github.com/KartikLabhshetwar/zoomies/releases/latest)
+[![Download](https://img.shields.io/badge/Download-latest-brightgreen?logo=apple&logoColor=white)](https://github.com/KartikLabhshetwar/zoomies/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 Inspired by [**RunCat**](https://github.com/runcat-dev/RunCat365) — the running cat that speeds up with your CPU. 🐱
@@ -45,10 +45,11 @@ A pixel-art animal roams your full menu bar and runs faster the harder your Mac 
 ### Features
 
 - **Menu bar native** — the animal lives right inside the macOS status item; the system always places it in the notch-safe zone
-- **Direction tracking** — the sprite faces the direction your cursor is moving: drag left and it runs left, drag right and it turns around
+- **Direction tracking** — the sprite faces the direction your cursor is moving: move it left and the animal runs left, move right and it turns around
 - **Always running** — no stopping or pausing; only the speed changes with system load
-- **Load-reactive speed** — slow trot at idle, steady run at normal load, all-out sprint when your Mac is busy (2–9 fps leg cycle, eased so light load stays calm)
-- **Retina-crisp pixel art** — nearest-neighbour scaling at 26 pt × backing scale factor; every pixel stays sharp
+- **Smooth, soothing motion** — a display-synced `CADisplayLink` drives a continuous gait with a gentle vertical bob, so even a two-frame sprite reads as fluid, lifelike running (capped at 30 Hz to stay battery-light)
+- **Load-reactive speed** — slow trot at idle, steady run at normal load, all-out sprint when your Mac is busy; the pace *eases* between speeds, so a CPU spike reads as the animal winding up rather than snapping
+- **Retina-crisp pixel art** — registered, baseline-locked frames scaled with nearest-neighbour interpolation at 26 pt × backing scale factor; every pixel stays sharp and the animal never jitters between poses
 - **Three monitors** — CPU (via `host_cpu_load_info`), GPU (via IOAccelerator IOKit), and RAM (via `vm_statistics64`), each accurate and independent
 - **Per-source display** — menu bar shows `CPU 42%` / `GPU 6%` / `RAM 55%` / `MAX 55%` depending on which source you selected
 - **Live menu** — click to see CPU, GPU, and RAM with color-coded bar graphs
@@ -93,7 +94,7 @@ killall yes
 make            # list all commands
 make build      # build (Debug, unsigned) → build/Build/Products/Debug/Zoomies.app
 make run        # build + launch
-make test       # run the unit test suite (46 tests)
+make test       # run the unit test suite (72 tests)
 make stop       # quit the running app
 make install    # copy to /Applications and launch
 make project    # regenerate Zoomies.xcodeproj from project.yml
@@ -105,21 +106,24 @@ make clean      # remove build/ and the generated project
 ## How it works
 
 ```
-CPU/GPU/RAM load  →  Monitors  →  PetController  →  NSStatusItem.button.image
-                                       ↑
-                   MouseDirectionMonitor (cursor tracking)
+CPU/GPU/RAM load → Monitors → SpeedMapping (eased target pace)
+                                          │
+  CADisplayLink (display-synced) → GaitAnimator → NSStatusItem.button.image
+                                          ↑
+                        MouseDirectionMonitor (cursor facing)
 ```
 
-- **`CPUMonitor`** — samples aggregate CPU load every 1 s via `host_cpu_load_info` (tick-diff, same method as Activity Monitor)
-- **`GPUMonitor`** — samples GPU utilization every 500 ms via IOAccelerator IOKit; uses a 5-sample peak window to avoid 0 % flicker during the ~200 ms kernel-update interval
+- **`CPUMonitor`** — samples aggregate CPU load every 2 s via `host_cpu_load_info` (tick-diff, same method as Activity Monitor); a low-frequency, coalesced wake-up keeps it light on older Macs
+- **`GPUMonitor`** — samples GPU utilization every 2 s via IOAccelerator IOKit on a background queue; a light exponential moving average smooths the reading and absorbs the driver's occasional stale 0 %
 - **`MemorySampler`** — reads active + wired + compressor pages via `vm_statistics64`
-- **`SpeedMapping`** — maps 0–1 load to a leg cadence (3–18 fps); also scales by the user's speed multiplier
-- **`PetController`** — drives a variable-rate `Timer` that alternates two run frames; restarts only when the fps bucket changes (avoids stutter); owns the `MouseDirectionMonitor` and swaps left/right frame sets on direction change
+- **`SpeedMapping`** — maps 0–1 load to a leg cadence (2–9 fps) on a cubic ease-in curve, so light/medium load stays a calm trot and the speed-up concentrates near full load; also scales by the user's speed multiplier
+- **`GaitAnimator`** — pure, AppKit-free gait engine: advances a continuous stride `phase`, eases the `pace` toward its target (frame-rate-independent), and derives a smooth vertical `bob`. This is the trick that turns a two-frame sprite into a real, soothing run. Fully unit-tested.
+- **`PetController`** — runs one `CADisplayLink` (display-synced, capped at 30 Hz) that ticks the `GaitAnimator`; load and speed only move a *target* the pace glides toward, so the link is never torn down and the stride phase never resets (no stutter). Each tick picks a pre-rendered (pose, bob-height) image and reassigns the button image only when it actually changes. Owns the `MouseDirectionMonitor` and flips the left/right frame sets on direction change.
 - **`MouseDirectionMonitor`** — global `NSEvent` monitor for `.mouseMoved`; feeds horizontal deltas into `DirectionTracker` (debounced 1.5 pt threshold) and calls back when facing flips
-- **`FrameLoader`** — reads packed sprite sheets from `Sprites/<id>_sheet.png`; crops the two west-run cells, scales to 26 pt × backingScaleFactor with nearest-neighbour interpolation, mirrors for the east-run set, and pads 4 pt trailing space so the pet doesn't crowd the label
+- **`FrameLoader`** — reads packed sprite sheets from `Sprites/<id>_sheet.png`; crops the two west-run cells, **registers them to a shared bounding box** so the cycle stays locked to one baseline (no jump between poses) and fills the icon, then pre-renders each pose at every bob height — scaled to 26 pt × backingScaleFactor with nearest-neighbour interpolation, mirrored for the east-run set, and padded 4 pt so the pet doesn't crowd the label
 - **`MenuController`** — click menu with live CPU / GPU / RAM bar graphs
 
-Pure logic lives in `ZoomiesCore` (unit-tested, no AppKit). AppKit wiring lives in the `Zoomies` target.
+Pure logic lives in `ZoomiesCore` (unit-tested, no AppKit) — including the `GaitAnimator` and `SpeedMapping` that shape the motion. AppKit wiring lives in the `Zoomies` target.
 
 ---
 
@@ -128,9 +132,9 @@ Pure logic lives in `ZoomiesCore` (unit-tested, no AppKit). AppKit wiring lives 
 ```
 zoomies/
 ├── Sources/
-│   ├── ZoomiesCore/           # Pure logic: monitors, SpeedMapping, Animal, DirectionTracker
+│   ├── ZoomiesCore/           # Pure logic: monitors, SpeedMapping, GaitAnimator, Animal, DirectionTracker
 │   └── Zoomies/               # AppKit app: AppDelegate, PetController, FrameLoader, settings UI
-│       └── Sprites/           # 6 packed RGBA PNG sprite sheets (<id>_sheet.png)
+│       └── Sprites/           # 4 packed RGBA PNG sprite sheets (<id>_sheet.png)
 ├── Tests/
 │   └── ZoomiesCoreTests/      # Unit tests
 ├── Tools/
