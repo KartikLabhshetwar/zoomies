@@ -9,8 +9,6 @@ Zoomies ships only the creatures that walk on legs. Artists for those:
 - Dog animations — NVPH Studio (https://nvph-studio.itch.io/dog-animation-4-different-dogs)
 - Akita inu — Kevin Huang (https://github.com/kevin2huang)
 - Fox — Elthen (https://twitter.com/pixelthen)
-- Ferris the crab — Marc Duiker (https://twitter.com/marcduiker);
-  original concept by Karen Rustad Tolva (https://www.aldeka.net)
 - Turtle — enkeefe (via https://www.pixilart.com/draw)
 - Horse — adapted by Chris Kent (https://github.com/thechriskent) from
   assets by Onfe (https://onfe.itch.io/horse-sprite-with-rider-asset-pack)
@@ -18,6 +16,6 @@ Zoomies ships only the creatures that walk on legs. Artists for those:
 - Skeleton — adapted by Chris Kent from assets by MonoPixelArt
   (https://monopixelart.itch.io/)
 
-Deno, monkey, rat, vampire, and totoro assets are also from the webpets /
-vscode-pets sets; see those repositories for full licensing details. The dog
-assets ship an explicit license at dog/license.txt.
+Deno, rat, and vampire assets are also from the webpets / vscode-pets sets;
+see those repositories for full licensing details. The dog assets ship an
+explicit license at dog/license.txt.

@@ -38,7 +38,7 @@ A pixel-art pet lives in your menu bar and reacts in real time to how hard your 
 
 ### Pets
 
-12 leg-walking creatures from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, rat, monkey, skeleton, deno, turtle, crab, vampire, and totoro. Most come in several color variants (the dog has five; the skeleton ten; the horse eleven), each pickable from Settings.
+9 leg-walking creatures from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, rat, skeleton, deno, turtle, and vampire. Most come in several color variants (the dog has five; the skeleton ten; the horse eleven), each pickable from Settings.
 
 ### Features
 

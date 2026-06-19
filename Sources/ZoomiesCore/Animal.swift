@@ -44,22 +44,19 @@ public enum PetNaming {
 }
 
 public enum AnimalLibrary {
-    // Only creatures that walk on legs. Birds, the snake, the snail, and the legless
-    // mascots (clippy, rocky, zappy, mod, morph, rubber-duck) are intentionally excluded.
+    // Four-legged / bipedal walkers only. Birds, the snake, the snail, the legless mascots
+    // (clippy, rocky, zappy, mod, morph, rubber-duck), and crab/monkey/totoro are excluded.
     public static let all: [Animal] = [
-        make("crab",        ["red"]),
         make("deno",        ["green"]),
         make("dog",         ["akita", "black", "brown", "red", "white"]),
         make("fox",         ["red", "white"]),
         make("horse",       ["black", "brown", "magical", "paint_beige", "paint_black",
                              "paint_brown", "socks_beige", "socks_black", "socks_brown",
                              "warrior", "white"]),
-        make("monkey",      ["gray"], hasWalkFast: false),
         make("panda",       ["black", "brown"]),
         make("rat",         ["brown", "gray", "white"]),
         make("skeleton",    ["blue", "brown", "green", "orange", "pink", "purple",
                              "red", "warrior", "white", "yellow"], hasWalkFast: false),
-        make("totoro",      ["gray"], hasWalkFast: false),
         make("turtle",      ["green", "orange"]),
         make("vampire",     ["converted", "countess", "girl"], defaultColor: "countess"),
     ]

@@ -2,11 +2,12 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testRosterIsTwelveWalkers() {
-        XCTAssertEqual(AnimalLibrary.all.count, 12)
-        // Non-leg-walkers must be gone.
+    func testRosterIsNineWalkers() {
+        XCTAssertEqual(AnimalLibrary.all.count, 9)
+        // Non-leg-walkers and the dropped crab/monkey/totoro must be gone.
         let removed: Set<String> = ["chicken", "cockatiel", "snake", "snail", "morph",
-                                    "clippy", "rocky", "zappy", "rubber-duck", "mod"]
+                                    "clippy", "rocky", "zappy", "rubber-duck", "mod",
+                                    "crab", "monkey", "totoro"]
         for id in removed {
             XCTAssertFalse(AnimalLibrary.all.contains { $0.id == id }, "\(id) should be removed")
         }
@@ -36,7 +37,7 @@ final class AnimalLibraryTests: XCTestCase {
     }
 
     func testWalkFastGapsAreFlagged() {
-        let noFast: Set<String> = ["monkey", "skeleton", "totoro"]
+        let noFast: Set<String> = ["skeleton"]   // monkey & totoro (also gap-less) were removed
         for a in AnimalLibrary.all {
             XCTAssertEqual(a.hasWalkFast, !noFast.contains(a.id), "hasWalkFast wrong for \(a.id)")
         }
