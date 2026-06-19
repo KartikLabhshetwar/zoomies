@@ -123,7 +123,7 @@ private struct AnimalCell: View {
 
     private func loadIcon() {
         guard icon == nil else { return }
-        icon = FrameLoader.loadIdlePreview(animal)
+        icon = FrameLoader.loadThumbnail(animal, colorID: animal.defaultColorID)
     }
 }
 

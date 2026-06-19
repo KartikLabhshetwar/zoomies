@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menuController.buildMenu()
 
         pet = PetController(statusItem: statusItem)
-        pet.setAnimal(AnimalLibrary.animal(withID: settings.animalID))
+        pet.setPet(AnimalLibrary.animal(withID: settings.animalID), colorID: settings.colorID)
         pet.setSpeed(settings.speed)
 
         settings.$showPercentage
@@ -43,10 +43,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .dropFirst()
             .sink { [weak self] speed in self?.pet.setSpeed(speed) }
             .store(in: &cancellables)
-        // Switch the roaming critter live when the user picks a different animal.
+        // Switch the roaming critter live when the user picks a different animal. Keep the
+        // current color if the new pet has it, else snap to its default (which re-fires
+        // through the colorID sink). Either way exactly one setPet runs.
         settings.$animalID
             .dropFirst()
-            .sink { [weak self] id in self?.pet.setAnimal(AnimalLibrary.animal(withID: id)) }
+            .sink { [weak self] id in
+                guard let self else { return }
+                let animal = AnimalLibrary.animal(withID: id)
+                if animal.colors.contains(where: { $0.id == self.settings.colorID }) {
+                    self.pet.setPet(animal, colorID: self.settings.colorID)
+                } else {
+                    self.settings.colorID = animal.defaultColorID
+                }
+            }
+            .store(in: &cancellables)
+        settings.$colorID
+            .dropFirst()
+            .sink { [weak self] color in
+                guard let self else { return }
+                self.pet.setPet(AnimalLibrary.animal(withID: self.settings.animalID), colorID: color)
+            }
             .store(in: &cancellables)
 
         cpu.onUpdate = { [weak self] cpuLoad in
