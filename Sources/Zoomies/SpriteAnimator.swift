@@ -2,12 +2,20 @@ import AppKit
 import ZoomiesCore
 
 final class SpriteAnimator {
+    /// Which way the cat faces. Left is oneko's native run; right is the mirror.
+    enum Facing { case left, right }
+
     private weak var statusItem: NSStatusItem?
-    private var frames: [NSImage] = []
+    private var framesLeft: [NSImage] = []
+    private var framesRight: [NSImage] = []
+    private var facing: Facing = .left
     private var index = 0
     private var load: Double = 0
     private var timer: Timer?
     private var scheduledFPS: Int = -1   // fps bucket the current timer was scheduled for
+
+    /// Frames for the way the cat is currently facing.
+    private var frames: [NSImage] { facing == .right ? framesRight : framesLeft }
 
     private var reduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -29,10 +37,19 @@ final class SpriteAnimator {
     }
 
     func setAnimal(_ animal: Animal) {
-        frames = FrameLoader.load(animal)
+        framesLeft = FrameLoader.load(animal)
+        framesRight = FrameLoader.mirrored(framesLeft)
         index = 0
         showCurrentFrame()
         restartTimer()
+    }
+
+    /// Turn the cat to face the way the cursor is moving. Keeps the current frame
+    /// index and pacing so the run continues smoothly — only the image swaps.
+    func setFacing(_ newFacing: Facing) {
+        guard newFacing != facing else { return }
+        facing = newFacing
+        showCurrentFrame()
     }
 
     /// Updates the load and re-paces the animation only when the speed bucket

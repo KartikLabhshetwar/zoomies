@@ -46,13 +46,13 @@ run: build ## Build, then launch Zoomies (look in your menu bar, top-right)
 	@killall $(APP_NAME) 2>/dev/null || true
 	@open "$(APP_PATH)"
 	@echo "✅ $(APP_NAME) is running — check the right side of your menu bar."
-	@echo "   Click the animal to switch it, see CPU %, or quit."
+	@echo "   Click the cat to see CPU %, open Settings, or quit."
 	@echo "   Tip: run  yes > /dev/null &  on a few cores to watch it sprint (then: killall yes)."
 
 stop: ## Quit the running app
 	@killall $(APP_NAME) 2>/dev/null && echo "🛑 Stopped $(APP_NAME)." || echo "$(APP_NAME) was not running."
 
-sprites: ## Regenerate the animal sprite frames into the asset catalog
+sprites: ## Regenerate the oneko sprite frames into the asset catalog
 	@echo "🎨 Generating sprite frames…"
 	@swift $(GENERATOR)
 

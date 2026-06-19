@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var animator: SpriteAnimator!
     private var menuController: MenuController!
+    private let mouseMonitor = MouseDirectionMonitor()
     private let cpu = CPUMonitor()
     private let settings = AppSettings.shared
     private var cancellables = Set<AnyCancellable>()
@@ -24,17 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
 
         animator = SpriteAnimator(statusItem: statusItem)
-        animator.setAnimal(settings.selectedAnimal)
+        animator.setAnimal(AnimalLibrary.default)
 
         menuController = MenuController(onOpenSettings: { SettingsWindowController.show() })
         statusItem.menu = menuController.buildMenu()
 
-        // React to selection changes from the menu, Surprise Me, or the Settings window.
-        settings.$selectedAnimalID
-            .dropFirst()
-            .removeDuplicates()
-            .sink { [weak self] id in self?.animator.setAnimal(AnimalLibrary.animal(withID: id)) }
-            .store(in: &cancellables)
         settings.$showPercentage
             .sink { [weak self] _ in self?.refreshTitle() }
             .store(in: &cancellables)
@@ -57,6 +52,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         cpu.start(interval: 2.0)
         animator.start()
+
+        // Turn the cat to face whichever way the cursor is moving.
+        mouseMonitor.onChange = { [weak self] direction in
+            self?.animator.setFacing(direction == .right ? .right : .left)
+        }
+        mouseMonitor.start()
     }
 
     private var percent: Int { Int((lastRawLoad * 100).rounded()) }
@@ -76,5 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         cpu.stop()
         animator.stop()
+        mouseMonitor.stop()
     }
 }

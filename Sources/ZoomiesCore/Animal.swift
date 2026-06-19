@@ -14,12 +14,10 @@ public struct Animal: Equatable, Identifiable {
 }
 
 public enum AnimalLibrary {
+    // The one and only sprite: oneko, the classic "Neko" cat (oneko.js by adryd, MIT).
+    // Two frames make up its left-facing run cycle, paced by system load.
     public static let all: [Animal] = [
-        Animal(id: "cat", name: "Cat", frameCount: 5),
-        Animal(id: "dog", name: "Dog", frameCount: 4),
-        Animal(id: "rabbit", name: "Rabbit", frameCount: 4),
-        Animal(id: "horse", name: "Horse", frameCount: 5),
-        Animal(id: "parrot", name: "Parrot", frameCount: 10),
+        Animal(id: "oneko", name: "Oneko", frameCount: 2),
     ]
 
     public static let `default` = all[0]

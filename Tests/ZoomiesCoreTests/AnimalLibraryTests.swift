@@ -2,30 +2,27 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testHasFiveAnimals() {
-        XCTAssertEqual(AnimalLibrary.all.count, 5)
+    func testHasSingleOnekoAnimal() {
+        XCTAssertEqual(AnimalLibrary.all.count, 1)
+        XCTAssertEqual(AnimalLibrary.all.first?.id, "oneko")
     }
-    func testIncludesNewCharacters() {
-        let ids = Set(AnimalLibrary.all.map(\.id))
-        XCTAssertTrue(ids.isSuperset(of: ["cat", "dog", "rabbit", "horse", "parrot"]))
+    func testDefaultIsOneko() {
+        XCTAssertEqual(AnimalLibrary.default.id, "oneko")
+        XCTAssertEqual(AnimalLibrary.default.name, "Oneko")
     }
-    func testEveryAnimalHasFrames() {
-        for animal in AnimalLibrary.all {
-            XCTAssertGreaterThan(animal.frameCount, 0, "\(animal.id) has no frames")
-            XCTAssertEqual(animal.frameNames.count, animal.frameCount)
-        }
+    func testOnekoHasTwoFrames() {
+        let oneko = AnimalLibrary.animal(withID: "oneko")
+        XCTAssertEqual(oneko.frameCount, 2)
+        XCTAssertEqual(oneko.frameNames, ["oneko_0", "oneko_1"])
+    }
+    func testFrameNameFormat() {
+        let oneko = AnimalLibrary.default
+        XCTAssertEqual(oneko.frameName(0), "oneko_0")
+        XCTAssertEqual(oneko.frameName(1), "oneko_1")
     }
     func testIDsAreUnique() {
         let ids = AnimalLibrary.all.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count)
-    }
-    func testFrameNameFormat() {
-        let cat = AnimalLibrary.animal(withID: "cat")
-        XCTAssertEqual(cat.frameName(0), "cat_0")
-        XCTAssertEqual(cat.frameName(3), "cat_3")
-    }
-    func testDefaultIsCat() {
-        XCTAssertEqual(AnimalLibrary.default.id, "cat")
     }
     func testUnknownIDFallsBackToDefault() {
         XCTAssertEqual(AnimalLibrary.animal(withID: "dragon"), AnimalLibrary.default)

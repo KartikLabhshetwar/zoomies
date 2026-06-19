@@ -1,6 +1,6 @@
 # Contributing to Zoomies
 
-Thanks for taking the time to contribute! This guide covers everything you need — from filing a bug to adding a brand-new animal.
+Thanks for taking the time to contribute! This guide covers everything you need — from filing a bug to tweaking the cat sprite.
 
 ---
 
@@ -11,7 +11,7 @@ Thanks for taking the time to contribute! This guide covers everything you need 
 - [Suggesting Features](#suggesting-features)
 - [Development Setup](#development-setup)
 - [Making Changes](#making-changes)
-- [Adding a New Animal](#adding-a-new-animal)
+- [Sprite Frames](#sprite-frames)
 - [Pull Request Guidelines](#pull-request-guidelines)
 - [Code Style](#code-style)
 
@@ -45,7 +45,7 @@ Open an [issue](https://github.com/KartikLabhshetwar/zoomies/issues/new) with th
 - Any rough idea of how it could work
 - Why it fits a lightweight menu-bar app
 
-The most welcome suggestions: new animals, animation improvements, and performance wins. Scope-expanding features (network monitoring, notifications, etc.) are less likely to land — Zoomies is intentionally tiny.
+The most welcome suggestions: animation improvements and performance wins. Scope-expanding features (network monitoring, notifications, etc.) are less likely to land — Zoomies is intentionally tiny.
 
 ---
 
@@ -66,7 +66,7 @@ cd zoomies
 make run
 ```
 
-This generates `Zoomies.xcodeproj`, builds the app (Debug, unsigned), and launches it. The animal appears in your menu bar.
+This generates `Zoomies.xcodeproj`, builds the app (Debug, unsigned), and launches it. The cat appears in your menu bar.
 
 The generated `.xcodeproj` is git-ignored — never edit it directly. All project config lives in `project.yml`.
 
@@ -76,7 +76,7 @@ The generated `.xcodeproj` is git-ignored — never edit it directly. All projec
 make build      # build without launching
 make test       # run the full unit test suite
 make stop       # quit the running app
-make sprites    # regenerate animal sprite frames into the asset catalog
+make sprites    # regenerate the oneko sprite frames into the asset catalog
 make clean      # wipe build/ and the generated project
 ```
 
@@ -107,7 +107,7 @@ make clean      # wipe build/ and the generated project
 5. **Commit** with a short, present-tense message:
 
    ```
-   add rabbit idle-frame variation
+   tune the oneko run-cycle timing
    fix speed mapping at 0% load
    ```
 
@@ -115,60 +115,31 @@ make clean      # wipe build/ and the generated project
 
 ---
 
-## Adding a New Animal
+## Sprite Frames
 
-New animals are the most fun contribution. Here's exactly how to do it.
+The menu-bar cat is **oneko** — the classic "Neko" sprite (by [adryd](https://github.com/adryd325/oneko.js), MIT). Its two run frames are sliced out of the sprite sheet at build time.
 
-### 1. Prepare source frames
+### Source
 
-- Create a folder under `resources/<animal>/` with your source PNGs
-- Frames should be **pixel art**, roughly **32–48 px** tall, on a **transparent background**
-- Name them `<animal>_0.png`, `<animal>_1.png`, etc.
-- Provide at least **3–5 frames** that loop cleanly as a run cycle
-- Include the **license / attribution** for the sprite in a comment inside `Tools/SpriteGenerator/main.swift`
+- `resources/oneko/oneko.gif` — a 256×128 sheet (an 8×4 grid of 32×32 cells), plus its `LICENSE`.
 
-### 2. Register the animal in the sprite generator
+### Slicer
 
-Open `Tools/SpriteGenerator/main.swift` and add an `AnimalImport` entry to the `animals` array:
+`Tools/SpriteGenerator/main.swift` cuts oneko's left-facing run cells (grid column 4, rows 2–3), tight-crops them, and writes **color** imagesets into `Sources/Zoomies/Assets.xcassets/` as `oneko_0` / `oneko_1`.
 
-```swift
-AnimalImport(
-    id: "cat",                          // unique string ID, lowercase
-    sourcePaths: (0..<4).map { "resources/cat/cat_\($0).png" },
-    frameSequence: [0, 1, 2, 3],       // order to play frames (can repeat for hold frames)
-    conversion: .alphaThreshold        // or .luminanceToAlpha — see note below
-)
-```
-
-**Conversion modes:**
-- `.luminanceToAlpha` — for dark-on-light sprites (e.g. the horse): dark pixels stay opaque, light pixels become transparent. Use this for sprites that are already the right shape but have a white background.
-- `.alphaThreshold` — for colored sprites with transparency: any non-transparent pixel becomes full black. Use this for pixel art that already has an alpha channel.
-
-### 3. Register the animal in the app
-
-Open `Sources/ZoomiesCore/Animal.swift` and add a case to the `Animal` enum following the existing pattern.
-
-### 4. Regenerate the asset catalog
+To regenerate the frames after changing the sheet or the chosen cells:
 
 ```sh
 make sprites
 ```
 
-This runs the generator and writes the new imageset into `Sources/Zoomies/Assets.xcassets/`. Commit the generated assets along with your source PNGs and code changes.
-
-### 5. Test it
-
-```sh
-make run
-```
-
-Click the menu bar animal → your new animal should appear in the list and Settings gallery. Make sure it animates smoothly at both slow and fast speeds.
+Commit the regenerated imagesets alongside your change. If you swap in a different sprite sheet, update the `runFrames` cells and the source/license note at the top of `Tools/SpriteGenerator/main.swift`, then run `make run` and confirm the cat animates smoothly at both slow and fast speeds.
 
 ---
 
 ## Pull Request Guidelines
 
-- **One concern per PR** — a new animal, a bug fix, or a refactor. Not all three.
+- **One concern per PR** — a feature, a bug fix, or a refactor. Not all three.
 - **Keep the app lightweight** — avoid adding dependencies, frameworks, or heavy abstractions.
 - **Tests for logic** — any new `ZoomiesCore` code should have unit tests.
 - **No generated files in the diff** — `Zoomies.xcodeproj` is git-ignored; don't add it.

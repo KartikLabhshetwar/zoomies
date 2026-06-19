@@ -3,7 +3,7 @@
 //  Zoomies
 //
 //  Root settings view: NavigationSplitView with sidebar + detail pane routing.
-//  Tabs: Animals, Behavior, About.
+//  Tabs: Behavior, About.
 //
 
 import AppKit
@@ -12,7 +12,6 @@ import SwiftUI
 // MARK: - Tab Enum
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case animals
     case behavior
     case about
 
@@ -20,7 +19,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .animals:  "Animals"
         case .behavior: "Behavior"
         case .about:    "About"
         }
@@ -28,7 +26,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .animals:  "pawprint"
         case .behavior: "gearshape"
         case .about:    "info.circle"
         }
@@ -41,7 +38,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 @Observable
 final class SettingsNavigation {
     static let shared = SettingsNavigation()
-    var selectedTab: SettingsTab? = .animals
+    var selectedTab: SettingsTab? = .behavior
     private init() {}
 }
 
@@ -49,12 +46,12 @@ final class SettingsNavigation {
 
 struct SettingsView: View {
     @State private var navigation = SettingsNavigation.shared
-    @State private var navigationHistory: [SettingsTab] = [.animals]
+    @State private var navigationHistory: [SettingsTab] = [.behavior]
     @State private var historyIndex = 0
     @State private var isHistoryNavigation = false
 
     private var activeTab: SettingsTab {
-        navigation.selectedTab ?? .animals
+        navigation.selectedTab ?? .behavior
     }
 
     var body: some View {
@@ -147,7 +144,6 @@ private struct SettingsDetailView: View {
     var body: some View {
         Group {
             switch tab {
-            case .animals:  AnimalsPane()
             case .behavior: BehaviorPane()
             case .about:    AboutPane()
             }

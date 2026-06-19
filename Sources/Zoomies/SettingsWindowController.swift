@@ -15,7 +15,7 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private static var shared: SettingsWindowController?
 
-    /// Show the settings window, landing on the Animals tab by default.
+    /// Show the settings window, landing on the Behavior tab by default.
     static func show() {
         if shared == nil {
             shared = SettingsWindowController()
