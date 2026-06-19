@@ -2,17 +2,19 @@ import AppKit
 import ImageIO
 import ZoomiesCore
 
-/// Decodes the webpets GIFs for one pet+color into menu-bar-sized animation frames.
+/// Builds menu-bar-sized animation frames for one pet+color, from either webpets GIFs or a
+/// packed Neko sprite sheet (the classic Cat/Dalmatian).
 ///
-/// Each state (idle/walk/walk_fast/run) is a separate GIF with its own frame count and
-/// per-frame durations. The frames of all states are registered to a single scale and a
-/// shared bottom-center baseline so the pet never jumps or resizes when its gait changes,
-/// and within a state every frame shares one bounding box so the body doesn't wobble as
-/// limbs extend. Frames are pre-mirrored for right-facing (the art faces left).
+/// All states share one scale — the tallest single frame fills `iconHeight`, so nothing ever
+/// clips — and each frame is centered vertically in a fixed canvas, so shorter poses sit
+/// centered rather than low. Within a state, frames are centered horizontally on the state's
+/// union box so the body doesn't wobble as limbs extend. Frames are pre-mirrored so the pet
+/// faces the way the cursor moves (webpets art faces right; the Neko sheets face left).
 enum FrameLoader {
-    /// Height in points a typical frame is scaled to fill. Matches the 1.0 size and fills a
-    /// tall (notched-Mac) menu bar well; the system centers the image in the bar.
-    static let iconHeight: CGFloat = 26
+    /// Height in points the TALLEST frame is scaled to fill (so nothing ever clips). Kept on
+    /// the modest side so big sprites (dog, cat) sit at a comfortable menu-bar size rather
+    /// than dominating; the system centers the image in the bar.
+    static let iconHeight: CGFloat = 20
     /// Gap (points) kept on the trailing edge so the sprite doesn't hug the % label.
     static let trailingPad: CGFloat = 4
 
@@ -50,15 +52,16 @@ enum FrameLoader {
             return PetClips(states: [:], thumbnail: loadThumbnail(animal, colorID: colorID))
         }
 
-        // 2. Scale so the WALK pose fills the icon height. Using the walk box (not the max
-        //    across all states) avoids the leap-heavy run/walk_fast box shrinking the common
-        //    walking pose — the bug that made several pets render small. A taller run leap just
-        //    overshoots the top and clips harmlessly. No width cap; the status item is
-        //    variable-width.
+        // 2. Scale so the TALLEST state's union box fills the icon height. Because every
+        //    state's union (and every frame within it) is no taller than that, nothing ever
+        //    clips — earlier attempts that scaled by the walk pose let run leaps / raised
+        //    tails overshoot and get cut off ("partial hide"). Each state's union is then
+        //    centered vertically (step 3), so shorter poses sit centered, not low. No width
+        //    cap; the status item is variable-width.
         let backing = NSScreen.main?.backingScaleFactor ?? 2
-        let refH = CGFloat(raw[.walk]?.union.h ?? raw[.idle]?.union.h ?? raw.values.first!.union.h)
+        let maxUnionH = CGFloat(raw.values.map { $0.union.h }.max() ?? 1)
         let maxW = CGFloat(raw.values.map { $0.union.w }.max() ?? 1)
-        let scale = (iconHeight * backing) / max(refH, 1)
+        let scale = (iconHeight * backing) / max(maxUnionH, 1)
         let canvasHpx = Int((iconHeight * backing).rounded())
         let contentWpx = Int((maxW * scale).rounded())
         let padPx = Int((trailingPad * backing).rounded())
@@ -74,7 +77,7 @@ enum FrameLoader {
         var states: [PetState: StateClip] = [:]
         for (state, r) in raw {
             let native = r.frames.map { f in
-                render(f, box: r.union, scale: scale,
+                render(f, unionBox: r.union, scale: scale,
                        canvasWpx: canvasWpx, canvasHpx: canvasHpx,
                        contentWpx: contentWpx, ptSize: ptSize, interpolation: interp)
             }
@@ -89,11 +92,10 @@ enum FrameLoader {
     // MARK: - Raw frame sources
 
     /// Per-state frames + durations + the union box used for placement.
-    private struct Raw { let frames: [CGImage]; let durations: [Double]; let union: Box; let boxes: [Box] }
+    private struct Raw { let frames: [CGImage]; let durations: [Double]; let union: Box }
 
     private static func raw(_ frames: [CGImage], _ durations: [Double]) -> Raw {
-        let boxes = frames.map(contentBox)
-        return Raw(frames: frames, durations: durations, union: unionBox(boxes), boxes: boxes)
+        Raw(frames: frames, durations: durations, union: unionBox(frames.map(contentBox)))
     }
 
     private static func rawFromGIF(petID: String, color: String, hasWalkFast: Bool) -> [PetState: Raw] {
@@ -223,6 +225,12 @@ enum FrameLoader {
         return Box(x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1)
     }
 
+    /// Crop `img` to its content `box` (box is bottom-left; `cropping(to:)` is top-left).
+    private static func cropContent(_ img: CGImage, _ box: Box) -> CGImage? {
+        let rect = CGRect(x: box.x, y: img.height - box.y - box.h, width: box.w, height: box.h)
+        return img.cropping(to: rect)
+    }
+
     /// Smallest box covering every frame's content, so all frames of a state share one
     /// placement (no horizontal wobble as limbs extend).
     private static func unionBox(_ boxes: [Box]) -> Box {
@@ -239,12 +247,9 @@ enum FrameLoader {
     /// Draw `img` (scaled) into a fixed canvas so its `box` (the per-state union) sits on the
     /// baseline (y=0) and is horizontally centered within the content region. All bottom-left
     /// coords — no flips.
-    private static func render(_ img: CGImage, box: Box, scale: CGFloat,
+    private static func render(_ img: CGImage, unionBox: Box, scale: CGFloat,
                               canvasWpx: Int, canvasHpx: Int, contentWpx: Int,
                               ptSize: NSSize, interpolation: CGInterpolationQuality = .high) -> NSImage {
-        let targetLeft = (CGFloat(contentWpx) - CGFloat(box.w) * scale) / 2
-        let drawX = targetLeft - CGFloat(box.x) * scale
-        let drawY = -CGFloat(box.y) * scale
         guard let ctx = CGContext(data: nil, width: canvasWpx, height: canvasHpx,
                                   bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(),
@@ -253,9 +258,16 @@ enum FrameLoader {
         }
         ctx.interpolationQuality = interpolation
         ctx.clear(CGRect(x: 0, y: 0, width: canvasWpx, height: canvasHpx))
-        ctx.draw(img, in: CGRect(x: drawX, y: drawY,
-                                 width: CGFloat(img.width) * scale,
-                                 height: CGFloat(img.height) * scale))
+        // Crop this frame to the per-state UNION box (same region for every frame of the
+        // state → the body sits still while limbs move within it), then draw that region
+        // centered. The tallest state's union == the canvas, so nothing ever clips and
+        // shorter states sit centered rather than low.
+        if let content = cropContent(img, unionBox) {
+            let sw = CGFloat(unionBox.w) * scale, sh = CGFloat(unionBox.h) * scale
+            let drawX = (CGFloat(contentWpx) - sw) / 2
+            let drawY = (CGFloat(canvasHpx) - sh) / 2
+            ctx.draw(content, in: CGRect(x: drawX, y: drawY, width: sw, height: sh))
+        }
         let out = NSImage(size: ptSize)
         if let cg = ctx.makeImage() {
             let rep = NSBitmapImageRep(cgImage: cg)
