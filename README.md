@@ -11,6 +11,8 @@ The busier your Mac, the faster it runs.
 [![Release](https://img.shields.io/github/v/release/KartikLabhshetwar/zoomies?color=brightgreen)](https://github.com/KartikLabhshetwar/zoomies/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
+Inspired by [**RunCat**](https://github.com/runcat-dev/RunCat365) — the running cat that speeds up with your CPU. 🐱
+
 </div>
 
 ---
@@ -126,6 +128,17 @@ zoomies/
 └── scripts/
     └── release.sh          # Build, sign, notarize, and package DMGs
 ```
+
+---
+
+## Acknowledgments
+
+Zoomies stands on the shoulders of **RunCat**. The core idea — a menu/task-bar critter that animates faster as your CPU heats up — comes from that project and its lineage:
+
+- **[RunCat for macOS](https://github.com/Kyome22/menubar_runcat)** by [Takuto Nakamura (Kyome)](https://github.com/Kyome22) — the original menu bar running cat that started it all.
+- **[RunCat365](https://github.com/runcat-dev/RunCat365)** by [runcat-dev](https://github.com/runcat-dev) — the Windows taskbar edition.
+
+Zoomies is an independent macOS reimplementation inspired by RunCat, adding a roster of animals and a native settings experience. Huge thanks to the RunCat authors for the delightful concept. 🐱
 
 ---
 
