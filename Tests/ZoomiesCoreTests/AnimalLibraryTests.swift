@@ -2,15 +2,30 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testRosterIsEightWalkers() {
-        XCTAssertEqual(AnimalLibrary.all.count, 8)
-        // Non-leg-walkers and the dropped crab/monkey/totoro/turtle must be gone.
+    func testRosterIsEightWalkersPlusTwoClassics() {
+        XCTAssertEqual(AnimalLibrary.all.count, 10)   // 8 webpets walkers + cat + dalmatian
+        // The classic 1.0 sprite-sheet pets are back.
+        XCTAssertTrue(AnimalLibrary.all.contains { $0.id == "cat" })
+        XCTAssertTrue(AnimalLibrary.all.contains { $0.id == "dalmatian" })
+        // Non-leg-walkers and the dropped crab/monkey/totoro/turtle stay gone.
         let removed: Set<String> = ["chicken", "cockatiel", "snake", "snail", "morph",
                                     "clippy", "rocky", "zappy", "rubber-duck", "mod",
                                     "crab", "monkey", "totoro", "turtle"]
         for id in removed {
             XCTAssertFalse(AnimalLibrary.all.contains { $0.id == id }, "\(id) should be removed")
         }
+    }
+
+    func testClassicPetsUseLeftFacingSheets() {
+        for id in ["cat", "dalmatian"] {
+            let a = AnimalLibrary.animal(withID: id)
+            XCTAssertFalse(a.facesRight, "\(id) (Neko sheet) faces left")
+            if case .sheet = a.source {} else { XCTFail("\(id) should be a sheet pet") }
+        }
+        // webpets pets stay GIF + right-facing.
+        let dog = AnimalLibrary.animal(withID: "dog")
+        XCTAssertTrue(dog.facesRight)
+        XCTAssertEqual(dog.source, .gif)
     }
 
     func testEveryAnimalHasValidDefaultColor() {
@@ -37,7 +52,8 @@ final class AnimalLibraryTests: XCTestCase {
     }
 
     func testWalkFastGapsAreFlagged() {
-        let noFast: Set<String> = ["skeleton"]   // monkey & totoro (also gap-less) were removed
+        // skeleton lacks walk_fast; the sheet pets (cat, dalmatian) reuse run for the fast bucket.
+        let noFast: Set<String> = ["skeleton", "cat", "dalmatian"]
         for a in AnimalLibrary.all {
             XCTAssertEqual(a.hasWalkFast, !noFast.contains(a.id), "hasWalkFast wrong for \(a.id)")
         }

@@ -38,7 +38,7 @@ A pixel-art pet lives in your menu bar and reacts in real time to how hard your 
 
 ### Pets
 
-9 leg-walking creatures from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, rat, skeleton, deno, turtle, and vampire. Most come in several color variants (the dog has five; the skeleton ten; the horse eleven), each pickable from Settings.
+10 leg-walking creatures. Eight from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, rat, skeleton, deno, and vampire — most with several color variants (the dog has five; the skeleton ten; the horse eleven), pickable from Settings. Plus the two classic Zoomies 1.0 pixel pets: the **Cat** (oneko) and the **Dalmatian** (Neko Archive).
 
 ### Features
 
@@ -118,7 +118,7 @@ CPU/GPU/RAM load → Monitors → PetController.setLoad
 - **`PetAnimator`** — pure, AppKit-free engine: maps eased load to one of four gait states (idle/walk/walk_fast/run) with up/down hysteresis, and advances the current cycle's frames by their native GIF durations, sped up by load × the Speed setting. Fully unit-tested.
 - **`PetController`** — runs one main-thread `Timer` (~30 Hz, `.common` run-loop mode) that ticks the `PetAnimator`; load and speed only move its inputs, so the cycle never resets (no stutter). A `Timer` is used rather than `CADisplayLink` because a status-item button's window is never key/active, so an `NSView`-vended display link never fires for it. Reassigns the button image only when the visible frame actually changes. Owns the `MouseDirectionMonitor` and flips the left/right frame sets on direction change.
 - **`MouseDirectionMonitor`** — global `NSEvent` monitor for `.mouseMoved`; feeds horizontal deltas into `DirectionTracker` (debounced 1.5 pt threshold) and calls back when facing flips
-- **`FrameLoader`** — decodes each gait's GIF (`Pets/<pet>/<color>_<state>.gif`) with `CGImageSource`, reading per-frame durations; registers every frame of every state to one shared scale and bottom-center baseline (no jump or wobble between gaits), scales to ~22 pt × backingScaleFactor, and pre-mirrors for the right-facing set
+- **`FrameLoader`** — builds each gait's frames from either webpets GIFs (`Pets/<pet>/<color>_<state>.gif`, decoded with `CGImageSource` for per-frame durations) or a packed 32 px Neko sprite sheet (the classic Cat/Dalmatian); scales the walk pose to ~26 pt × backingScaleFactor, registers each state to a shared box (no wobble), and mirrors to whichever way the cursor moves (webpets art faces right, the Neko sheets face left)
 - **`MenuController`** — click menu with live CPU / GPU / RAM bar graphs
 
 Pure logic lives in `ZoomiesCore` (unit-tested, no AppKit) — including the `PetAnimator` and `SpeedMapping` that shape the motion. AppKit wiring lives in the `Zoomies` target.
@@ -152,7 +152,7 @@ Zoomies is inspired by **RunCat** — a menu-bar critter that animates faster as
 - **[RunCat for macOS](https://github.com/Kyome22/menubar_runcat)** by [Takuto Nakamura (Kyome)](https://github.com/Kyome22) — the original menu-bar running cat.
 - **[RunCat365](https://github.com/runcat-dev/RunCat365)** by [runcat-dev](https://github.com/runcat-dev) — the Windows taskbar edition.
 
-The pets come from the **[webpets](https://github.com/sankalpaacharya/webpets)** project by Sankalpa Acharya, most originating from **[vscode-pets](https://github.com/tonybaloney/vscode-pets)**. Per-artist attribution for every creature lives in [`Sources/Zoomies/Pets/CREDITS.txt`](Sources/Zoomies/Pets/CREDITS.txt). Huge thanks to everyone who kept pixel-art creatures running across screens. 🐾
+Most pets come from the **[webpets](https://github.com/sankalpaacharya/webpets)** project by Sankalpa Acharya, originating from **[vscode-pets](https://github.com/tonybaloney/vscode-pets)**. The classic Cat is **[oneko.js](https://github.com/adryd325/oneko.js)** by [adryd](https://github.com/adryd325) (MIT), and the Dalmatian is a **[Neko Archive](https://bomvel.neocities.org/neko/)** sprite (public domain). Per-creature attribution lives in [`Sources/Zoomies/Pets/CREDITS.txt`](Sources/Zoomies/Pets/CREDITS.txt). Huge thanks to everyone who kept pixel-art creatures running across screens. 🐾
 
 ---
 

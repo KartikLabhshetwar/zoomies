@@ -8,22 +8,39 @@ public struct PetColor: Equatable, Identifiable {
     }
 }
 
+/// 32px-grid Neko sprite-sheet layouts (the classic 1.0 pets).
+public enum SheetLayout: Equatable { case classic, oneko }
+
+/// Where a pet's frames come from: per-state webpets GIFs, or a packed Neko sprite sheet.
+public enum SpriteSource: Equatable {
+    case gif
+    case sheet(resource: String, layout: SheetLayout)
+}
+
 public struct Animal: Equatable, Identifiable {
     public let id: String
     public let name: String
     public let colors: [PetColor]
     public let defaultColorID: String
-    /// Some creatures (monkey, skeleton, totoro) ship no walk_fast cycle; their fast
+    /// Some creatures (skeleton, and the sheet pets) ship no walk_fast cycle; their fast
     /// bucket reuses the run cycle.
     public let hasWalkFast: Bool
+    /// GIF (webpets) or a packed sprite sheet (classic Cat/Dalmatian).
+    public let source: SpriteSource
+    /// True if the source art faces right (webpets); false for the left-facing Neko sheets.
+    /// The loader mirrors accordingly so the pet faces the way the cursor moves.
+    public let facesRight: Bool
 
     public init(id: String, name: String, colors: [PetColor],
-                defaultColorID: String, hasWalkFast: Bool) {
+                defaultColorID: String, hasWalkFast: Bool,
+                source: SpriteSource = .gif, facesRight: Bool = true) {
         self.id = id
         self.name = name
         self.colors = colors
         self.defaultColorID = defaultColorID
         self.hasWalkFast = hasWalkFast
+        self.source = source
+        self.facesRight = facesRight
     }
 
     /// The requested color, or the animal's default when that id isn't in its palette.
@@ -47,6 +64,10 @@ public enum AnimalLibrary {
     // Four-legged / bipedal walkers only. Birds, snake, snail, the legless mascots (clippy,
     // rocky, zappy, mod, morph, rubber-duck), and crab/monkey/totoro/turtle are excluded.
     public static let all: [Animal] = [
+        // Classic 1.0 sprite-sheet pets.
+        makeSheet("cat", "Cat", "White", resource: "oneko_sheet", layout: .oneko),
+        makeSheet("dalmatian", "Dalmatian", "Spotted", resource: "dalmatian_sheet", layout: .classic),
+        // webpets GIF pets.
         make("deno",        ["green"]),
         make("dog",         ["akita", "black", "brown", "red", "white"]),
         make("fox",         ["red", "white"]),
@@ -75,5 +96,14 @@ public enum AnimalLibrary {
                colors: colors.map { PetColor(id: $0, displayName: PetNaming.humanize($0)) },
                defaultColorID: defaultColor ?? colors[0],
                hasWalkFast: hasWalkFast)
+    }
+
+    /// A classic Neko sprite-sheet pet: one color, left-facing art, no distinct walk_fast.
+    private static func makeSheet(_ id: String, _ name: String, _ colorName: String,
+                                  resource: String, layout: SheetLayout) -> Animal {
+        Animal(id: id, name: name,
+               colors: [PetColor(id: "classic", displayName: colorName)],
+               defaultColorID: "classic", hasWalkFast: false,
+               source: .sheet(resource: resource, layout: layout), facesRight: false)
     }
 }

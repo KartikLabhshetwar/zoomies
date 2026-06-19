@@ -19,3 +19,9 @@ Zoomies ships only the creatures that walk on legs. Artists for those:
 Deno, rat, and vampire assets are also from the webpets / vscode-pets sets;
 see those repositories for full licensing details. The dog assets ship an
 explicit license at dog/license.txt.
+
+Classic sprite-sheet pets (from Zoomies 1.0):
+- Cat — the oneko.js sprite by adryd (https://github.com/adryd325/oneko.js), MIT.
+  License: cat/license.txt.
+- Dalmatian — a Neko Archive sprite, public domain (GOODCLOVER).
+  License: dalmatian/license.txt.

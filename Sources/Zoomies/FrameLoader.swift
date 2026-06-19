@@ -36,20 +36,15 @@ enum FrameLoader {
     static func loadClips(_ animal: Animal, colorID: String) -> PetClips {
         let color = animal.color(withID: colorID).id
 
-        // 1. Decode raw frames + durations per state (walkFast falls back to run when absent),
-        //    and the per-state union of frame content boxes (frames of a state share one box so
-        //    the body doesn't wobble as limbs extend).
-        struct Raw { let frames: [CGImage]; let durations: [Double]; let union: Box; let boxes: [Box] }
-        var raw: [PetState: Raw] = [:]
-        for state in PetState.allCases {
-            var key = state
-            if state == .walkFast, !animal.hasWalkFast { key = .run }
-            guard let url = gifURL(pet: animal.id, color: color, state: stateFile[key]!) else { continue }
-            let decoded = decodeGIF(url)
-            guard !decoded.frames.isEmpty else { continue }
-            let boxes = decoded.frames.map(contentBox)
-            raw[state] = Raw(frames: decoded.frames, durations: decoded.durations,
-                             union: unionBox(boxes), boxes: boxes)
+        // 1. Gather raw frames + per-state union content boxes (frames of a state share one
+        //    box so the body doesn't wobble as limbs extend) — from webpets GIFs or a packed
+        //    Neko sprite sheet (the classic Cat/Dalmatian).
+        let raw: [PetState: Raw]
+        switch animal.source {
+        case .gif:
+            raw = rawFromGIF(petID: animal.id, color: color, hasWalkFast: animal.hasWalkFast)
+        case let .sheet(resource, layout):
+            raw = rawFromSheet(petID: animal.id, resource: resource, layout: layout)
         }
         guard !raw.isEmpty else {
             return PetClips(states: [:], thumbnail: loadThumbnail(animal, colorID: colorID))
@@ -70,25 +65,96 @@ enum FrameLoader {
         let canvasWpx = max(contentWpx + padPx, 1)
         let ptSize = NSSize(width: CGFloat(canvasWpx) / backing, height: iconHeight)
 
-        // 3. Render each frame against its state's shared union box, planted on the baseline.
-        //    The art faces RIGHT, so rendered frames are the right-facing set; mirror for left.
+        // 3. Render each frame against its state's shared union box, planted on the baseline,
+        //    then mirror to the facing the cursor moves toward: webpets art faces right, the
+        //    Neko sheets face left.
+        // 32px sheet cells scale UP — nearest-neighbour keeps the pixel art crisp; the larger
+        // webpets GIFs scale DOWN, where a smoothing filter looks better.
+        let interp: CGInterpolationQuality = { if case .sheet = animal.source { return CGInterpolationQuality.none } else { return .high } }()
         var states: [PetState: StateClip] = [:]
         for (state, r) in raw {
-            let right = r.frames.map { f in
+            let native = r.frames.map { f in
                 render(f, box: r.union, scale: scale,
                        canvasWpx: canvasWpx, canvasHpx: canvasHpx,
-                       contentWpx: contentWpx, ptSize: ptSize)
+                       contentWpx: contentWpx, ptSize: ptSize, interpolation: interp)
             }
-            let left = right.map { mirrored($0) }
+            let flipped = native.map { mirrored($0) }
+            let left = animal.facesRight ? flipped : native
+            let right = animal.facesRight ? native : flipped
             states[state] = StateClip(left: left, right: right, durations: r.durations)
         }
         return PetClips(states: states, thumbnail: loadThumbnail(animal, colorID: colorID))
+    }
+
+    // MARK: - Raw frame sources
+
+    /// Per-state frames + durations + the union box used for placement.
+    private struct Raw { let frames: [CGImage]; let durations: [Double]; let union: Box; let boxes: [Box] }
+
+    private static func raw(_ frames: [CGImage], _ durations: [Double]) -> Raw {
+        let boxes = frames.map(contentBox)
+        return Raw(frames: frames, durations: durations, union: unionBox(boxes), boxes: boxes)
+    }
+
+    private static func rawFromGIF(petID: String, color: String, hasWalkFast: Bool) -> [PetState: Raw] {
+        var out: [PetState: Raw] = [:]
+        for state in PetState.allCases {
+            var key = state
+            if state == .walkFast, !hasWalkFast { key = .run }   // reuse run when no walk_fast
+            guard let url = gifURL(pet: petID, color: color, state: stateFile[key]!) else { continue }
+            let decoded = decodeGIF(url)
+            guard !decoded.frames.isEmpty else { continue }
+            out[state] = raw(decoded.frames, decoded.durations)
+        }
+        return out
+    }
+
+    /// Build clips from a 32px-grid Neko sheet: idle = the sit pose, and walk/walk_fast/run
+    /// all use the two west-run poses (PetAnimator's playback rate makes "run" faster). The
+    /// run poses face left in every Neko sheet.
+    private static func rawFromSheet(petID: String, resource: String, layout: SheetLayout) -> [PetState: Raw] {
+        guard let sheet = loadSheet(petID: petID, resource: resource) else { return [:] }
+        let sit: (col: Int, row: Int)
+        let run: [(col: Int, row: Int)]
+        switch layout {
+        case .classic: sit = (0, 0); run = [(4, 2), (5, 2)]   // Neko Archive
+        case .oneko:   sit = (3, 3); run = [(4, 2), (4, 3)]   // adryd oneko.js  W:[[-4,-2],[-4,-3]]
+        }
+        func cell(_ c: (col: Int, row: Int)) -> CGImage? {
+            sheet.cropping(to: CGRect(x: c.col * 32, y: c.row * 32, width: 32, height: 32))
+        }
+        var out: [PetState: Raw] = [:]
+        if let s = cell(sit) { out[.idle] = raw([s], [1.0]) }
+        let runCells = run.compactMap(cell)
+        if !runCells.isEmpty {
+            let r = raw(runCells, Array(repeating: 0.18, count: runCells.count))
+            out[.walk] = r; out[.walkFast] = r; out[.run] = r
+        }
+        return out
+    }
+
+    private static func loadSheet(petID: String, resource: String) -> CGImage? {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "png",
+                                        subdirectory: "Pets/\(petID)"),
+              let data = try? Data(contentsOf: url),
+              let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
     /// Picker thumbnail: prefer the designed `icon_<color>.png`; otherwise show the actual
     /// first idle frame (so color swatches always reflect the real color); finally fall back
     /// to the pet's generic icon.
     static func loadThumbnail(_ animal: Animal, colorID: String) -> NSImage? {
+        // Sheet pets: crop the sit pose from the sheet.
+        if case let .sheet(resource, layout) = animal.source {
+            guard let sheet = loadSheet(petID: animal.id, resource: resource) else { return nil }
+            let sit = layout == .oneko ? (3, 3) : (0, 0)
+            guard let cell = sheet.cropping(to: CGRect(x: sit.0 * 32, y: sit.1 * 32, width: 32, height: 32))
+            else { return nil }
+            let b = contentBox(cell)
+            let cropped = cell.cropping(to: CGRect(x: b.x, y: cell.height - b.y - b.h, width: b.w, height: b.h)) ?? cell
+            return NSImage(cgImage: cropped, size: NSSize(width: b.w, height: b.h))
+        }
         let color = animal.color(withID: colorID).id
         if let url = Bundle.main.url(forResource: "icon_\(color)", withExtension: "png",
                                      subdirectory: "Pets/\(animal.id)"),
@@ -175,7 +241,7 @@ enum FrameLoader {
     /// coords — no flips.
     private static func render(_ img: CGImage, box: Box, scale: CGFloat,
                               canvasWpx: Int, canvasHpx: Int, contentWpx: Int,
-                              ptSize: NSSize) -> NSImage {
+                              ptSize: NSSize, interpolation: CGInterpolationQuality = .high) -> NSImage {
         let targetLeft = (CGFloat(contentWpx) - CGFloat(box.w) * scale) / 2
         let drawX = targetLeft - CGFloat(box.x) * scale
         let drawY = -CGFloat(box.y) * scale
@@ -185,7 +251,7 @@ enum FrameLoader {
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
             return NSImage(size: ptSize)
         }
-        ctx.interpolationQuality = .high   // smooth downscale of mid-res pixel art
+        ctx.interpolationQuality = interpolation
         ctx.clear(CGRect(x: 0, y: 0, width: canvasWpx, height: canvasHpx))
         ctx.draw(img, in: CGRect(x: drawX, y: drawY,
                                  width: CGFloat(img.width) * scale,
