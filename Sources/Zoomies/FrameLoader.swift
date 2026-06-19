@@ -10,12 +10,9 @@ import ZoomiesCore
 /// and within a state every frame shares one bounding box so the body doesn't wobble as
 /// limbs extend. Frames are pre-mirrored for right-facing (the art faces left).
 enum FrameLoader {
-    /// Height in points the tallest frame is scaled to. The menu bar is ~22pt; shorter
-    /// states render smaller and stay planted on the shared baseline.
-    static let iconHeight: CGFloat = 22
-    /// Hard cap on rendered width so very wide creatures (snake, horse) stay tidy next to
-    /// the percentage label.
-    static let maxWidth: CGFloat = 46
+    /// Height in points a typical frame is scaled to fill. Matches the 1.0 size and fills a
+    /// tall (notched-Mac) menu bar well; the system centers the image in the bar.
+    static let iconHeight: CGFloat = 26
     /// Gap (points) kept on the trailing edge so the sprite doesn't hug the % label.
     static let trailingPad: CGFloat = 4
 
@@ -40,8 +37,9 @@ enum FrameLoader {
         let color = animal.color(withID: colorID).id
 
         // 1. Decode raw frames + durations per state (walkFast falls back to run when absent),
-        //    and the per-state union of frame content boxes.
-        struct Raw { let frames: [CGImage]; let durations: [Double]; let box: Box }
+        //    and the per-state union of frame content boxes (frames of a state share one box so
+        //    the body doesn't wobble as limbs extend).
+        struct Raw { let frames: [CGImage]; let durations: [Double]; let union: Box; let boxes: [Box] }
         var raw: [PetState: Raw] = [:]
         for state in PetState.allCases {
             var key = state
@@ -49,32 +47,35 @@ enum FrameLoader {
             guard let url = gifURL(pet: animal.id, color: color, state: stateFile[key]!) else { continue }
             let decoded = decodeGIF(url)
             guard !decoded.frames.isEmpty else { continue }
-            let box = unionBox(decoded.frames.map(contentBox))
-            raw[state] = Raw(frames: decoded.frames, durations: decoded.durations, box: box)
+            let boxes = decoded.frames.map(contentBox)
+            raw[state] = Raw(frames: decoded.frames, durations: decoded.durations,
+                             union: unionBox(boxes), boxes: boxes)
         }
         guard !raw.isEmpty else {
             return PetClips(states: [:], thumbnail: loadThumbnail(animal, colorID: colorID))
         }
 
-        // 2. One scale + canvas across ALL states: tallest content fills iconHeight, with a
-        //    width cap so wide pets don't sprawl.
+        // 2. Scale so the WALK pose fills the icon height. Using the walk box (not the max
+        //    across all states) avoids the leap-heavy run/walk_fast box shrinking the common
+        //    walking pose — the bug that made several pets render small. A taller run leap just
+        //    overshoots the top and clips harmlessly. No width cap; the status item is
+        //    variable-width.
         let backing = NSScreen.main?.backingScaleFactor ?? 2
-        let maxH = CGFloat(raw.values.map { $0.box.h }.max() ?? 1)
-        let maxW = CGFloat(raw.values.map { $0.box.w }.max() ?? 1)
-        let scale = min((iconHeight * backing) / max(maxH, 1),
-                        (maxWidth * backing) / max(maxW, 1))
+        let refH = CGFloat(raw[.walk]?.union.h ?? raw[.idle]?.union.h ?? raw.values.first!.union.h)
+        let maxW = CGFloat(raw.values.map { $0.union.w }.max() ?? 1)
+        let scale = (iconHeight * backing) / max(refH, 1)
         let canvasHpx = Int((iconHeight * backing).rounded())
         let contentWpx = Int((maxW * scale).rounded())
         let padPx = Int((trailingPad * backing).rounded())
         let canvasWpx = max(contentWpx + padPx, 1)
         let ptSize = NSSize(width: CGFloat(canvasWpx) / backing, height: iconHeight)
 
-        // 3. Render each frame against its state's shared box. The source art faces RIGHT,
-        //    so the rendered frames are the right-facing set; mirror them for left.
+        // 3. Render each frame against its state's shared union box, planted on the baseline.
+        //    The art faces RIGHT, so rendered frames are the right-facing set; mirror for left.
         var states: [PetState: StateClip] = [:]
         for (state, r) in raw {
             let right = r.frames.map { f in
-                render(f, box: r.box, scale: scale,
+                render(f, box: r.union, scale: scale,
                        canvasWpx: canvasWpx, canvasHpx: canvasHpx,
                        contentWpx: contentWpx, ptSize: ptSize)
             }
@@ -169,8 +170,9 @@ enum FrameLoader {
         return Box(x: minX, y: minY, w: maxX - minX, h: maxY - minY)
     }
 
-    /// Draw `img` (scaled) into a fixed canvas so its `box` sits on the baseline (y=0) and is
-    /// horizontally centered within the content region. All bottom-left coords — no flips.
+    /// Draw `img` (scaled) into a fixed canvas so its `box` (the per-state union) sits on the
+    /// baseline (y=0) and is horizontally centered within the content region. All bottom-left
+    /// coords — no flips.
     private static func render(_ img: CGImage, box: Box, scale: CGFloat,
                               canvasWpx: Int, canvasHpx: Int, contentWpx: Int,
                               ptSize: NSSize) -> NSImage {
