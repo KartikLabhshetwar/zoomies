@@ -31,8 +31,8 @@ targets:
       - path: Sources/Zoomies
         excludes:
           - "Info.plist"
-          - "Sprites"
-      - path: Sources/Zoomies/Sprites
+          - "Pets"
+      - path: Sources/Zoomies/Pets
         type: folder
     dependencies:
       - target: ZoomiesCore

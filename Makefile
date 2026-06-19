@@ -7,7 +7,9 @@ SCHEME       := $(APP_NAME)
 CONFIG       := Debug
 DERIVED      := build
 APP_PATH     := $(DERIVED)/Build/Products/$(CONFIG)/$(APP_NAME).app
-GENERATOR    := Tools/SpriteGenerator/main.swift
+IMPORTER     := Tools/ImportPets/main.swift
+WEBPETS_REPO := https://github.com/sankalpaacharya/webpets
+WEBPETS_DIR  := /tmp/webpets
 
 # Common xcodebuild flags. Unsigned local build (CODE_SIGNING_ALLOWED=NO),
 # output to ./build so paths are predictable.
@@ -21,7 +23,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
 .DEFAULT_GOAL := help
-.PHONY: help project build test run stop sprites install clean release
+.PHONY: help project build test run stop import-pets install clean release
 
 help: ## List available commands
 	@echo "Zoomies — available commands:"
@@ -52,9 +54,10 @@ run: build ## Build, then launch Zoomies (look in your menu bar, top-right)
 stop: ## Quit the running app
 	@killall $(APP_NAME) 2>/dev/null && echo "🛑 Stopped $(APP_NAME)." || echo "$(APP_NAME) was not running."
 
-sprites: ## Regenerate the oneko sprite frames into the asset catalog
-	@echo "🎨 Generating sprite frames…"
-	@swift $(GENERATOR)
+import-pets: ## Re-import pet GIFs from the webpets repo into Sources/Zoomies/Pets
+	@test -d $(WEBPETS_DIR) || git clone --depth 1 $(WEBPETS_REPO) $(WEBPETS_DIR)
+	@echo "🐾 Importing pets from $(WEBPETS_DIR)…"
+	@swift $(IMPORTER) $(WEBPETS_DIR) Sources/Zoomies/Pets
 
 install: build ## Copy Zoomies.app into /Applications and launch it
 	@killall $(APP_NAME) 2>/dev/null || true
