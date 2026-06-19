@@ -16,8 +16,6 @@ public enum AnimalLibrary {
         Animal(id: "oneko",     name: "Cat",       isClassic: false),
         Animal(id: "dog",       name: "Dog",       isClassic: true),
         Animal(id: "fox",       name: "Fox",       isClassic: true),
-        Animal(id: "dalmatian", name: "Dalmatian", isClassic: true),
-        Animal(id: "browndog",  name: "Brown Dog", isClassic: true),
         Animal(id: "chocobo",   name: "Chocobo",   isClassic: true),
     ]
 

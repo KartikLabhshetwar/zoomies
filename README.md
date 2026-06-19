@@ -38,9 +38,9 @@ A pixel-art animal roams your full menu bar and runs faster the harder your Mac 
 
 ### Animals
 
-| Cat | Dog | Fox | Dalmatian | Brown Dog | Chocobo |
-|-----|-----|-----|-----------|-----------|---------|
-| oneko | dog | fox | dalmatian | browndog | chocobo |
+| Cat | Dog | Fox | Chocobo |
+|-----|-----|-----|---------|
+| oneko | dog | fox | chocobo |
 
 ### Features
 
@@ -52,7 +52,7 @@ A pixel-art animal roams your full menu bar and runs faster the harder your Mac 
 - **Three monitors** — CPU (via `host_cpu_load_info`), GPU (via IOAccelerator IOKit), and RAM (via `vm_statistics64`), each accurate and independent
 - **Per-source display** — menu bar shows `CPU 42%` / `GPU 6%` / `RAM 55%` / `MAX 55%` depending on which source you selected
 - **Live menu** — click to see CPU, GPU, and RAM with color-coded bar graphs
-- **6 animals** — Cat, Dog, Fox, Dalmatian, Brown Dog, Chocobo; pick any from the Settings grid and it switches instantly
+- **4 animals** — Cat, Dog, Fox, Chocobo; pick any from the Settings grid and it switches instantly
 - **Speed slider** — scales the whole speed curve (slow Sunday trot at one end, absolute chaos at the other)
 - **Featherweight** — background accessory process, no Dock icon, no polling waste
 - **Reduce Motion** — respects the system accessibility setting (holds on idle frame)
@@ -151,7 +151,7 @@ Zoomies is inspired by **RunCat**. The core idea — a menu-bar critter that ani
 - **[RunCat for macOS](https://github.com/Kyome22/menubar_runcat)** by [Takuto Nakamura (Kyome)](https://github.com/Kyome22) — the original menu-bar running cat.
 - **[RunCat365](https://github.com/runcat-dev/RunCat365)** by [runcat-dev](https://github.com/runcat-dev) — the Windows taskbar edition.
 
-The cat sprite is **[oneko.js](https://github.com/adryd325/oneko.js)** by [**adryd**](https://github.com/adryd325) (MIT). Classic animal sprites (Dog, Fox, Dalmatian, Brown Dog, Chocobo) are from **[The Neko Archive](https://bomvel.neocities.org/neko/)** — considered public domain by the archive. Huge thanks to everyone who kept pixel-art creatures running across screens. 🐾
+The cat sprite is **[oneko.js](https://github.com/adryd325/oneko.js)** by [**adryd**](https://github.com/adryd325) (MIT). Classic animal sprites (Dog, Fox, Chocobo) are from **[The Neko Archive](https://bomvel.neocities.org/neko/)** — considered public domain by the archive. Huge thanks to everyone who kept pixel-art creatures running across screens. 🐾
 
 ---
 

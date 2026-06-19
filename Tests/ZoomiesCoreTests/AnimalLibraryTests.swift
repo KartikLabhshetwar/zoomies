@@ -4,7 +4,7 @@ import XCTest
 final class AnimalLibraryTests: XCTestCase {
     func testRosterContainsAllAnimals() {
         let ids = AnimalLibrary.all.map(\.id)
-        XCTAssertEqual(ids, ["oneko", "dog", "fox", "dalmatian", "browndog", "chocobo"])
+        XCTAssertEqual(ids, ["oneko", "dog", "fox", "chocobo"])
     }
 
     func testDefaultIsCat() {

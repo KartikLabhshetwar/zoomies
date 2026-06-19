@@ -41,10 +41,6 @@ let skins: [Skin] = [
          run: [(4, 1), (5, 1)], idle: (0, 0)),
     Skin(id: "fox",       sheet: "resources/fox/fox.png",             format: .classic,
          run: [(4, 1), (5, 1)], idle: (0, 0)),
-    Skin(id: "dalmatian", sheet: "resources/dalmatian/dalmatian.png", format: .classic,
-         run: [(4, 1), (5, 1)], idle: (0, 0)),
-    Skin(id: "browndog",  sheet: "resources/browndog/browndog.png",   format: .classic,
-         run: [(4, 1), (5, 1)], idle: (0, 0)),
     Skin(id: "chocobo",   sheet: "resources/chocobo/chocobo.png",     format: .classic,
          run: [(4, 1), (5, 1)], idle: (0, 0)),
 ]
