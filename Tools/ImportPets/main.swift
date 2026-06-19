@@ -19,7 +19,7 @@ let skip: Set<String> = [
     "background", "icon", "walkers_wide",
     "chicken", "cockatiel", "snake", "snail", "morph",
     "clippy", "rocky", "zappy", "rubber-duck", "mod",
-    "crab", "monkey", "totoro",
+    "crab", "monkey", "totoro", "turtle",
 ]
 
 try? fm.createDirectory(at: dest, withIntermediateDirectories: true)

@@ -2,12 +2,12 @@ import XCTest
 @testable import ZoomiesCore
 
 final class AnimalLibraryTests: XCTestCase {
-    func testRosterIsNineWalkers() {
-        XCTAssertEqual(AnimalLibrary.all.count, 9)
-        // Non-leg-walkers and the dropped crab/monkey/totoro must be gone.
+    func testRosterIsEightWalkers() {
+        XCTAssertEqual(AnimalLibrary.all.count, 8)
+        // Non-leg-walkers and the dropped crab/monkey/totoro/turtle must be gone.
         let removed: Set<String> = ["chicken", "cockatiel", "snake", "snail", "morph",
                                     "clippy", "rocky", "zappy", "rubber-duck", "mod",
-                                    "crab", "monkey", "totoro"]
+                                    "crab", "monkey", "totoro", "turtle"]
         for id in removed {
             XCTAssertFalse(AnimalLibrary.all.contains { $0.id == id }, "\(id) should be removed")
         }
