@@ -4,8 +4,16 @@ import ZoomiesCore
 
 enum FrameLoader {
     static let iconHeight: CGFloat = 26
-    /// Vertical gait bounce (points) applied to the classic run cycle's flight frame.
-    private static let runBounce: CGFloat = 2
+
+    /// Headroom (points) reserved at the top of the icon canvas for the run cycle's
+    /// vertical bob. Run sprites are drawn `iconHeight - bobLiftPoints` tall so the body
+    /// can rise this far without changing the status item's height or clipping the art.
+    static let bobLiftPoints: CGFloat = 3
+    /// The bob is quantised into this many lift steps, each pre-rendered once. 6 ≈ one
+    /// Retina pixel per step at 2×: smooth to the eye, yet only a handful of cached images.
+    static let bobLevels = 6
+    /// Poses in the run cycle — the source sheets only ship two per direction.
+    static let runFrameCount = 2
 
     // MARK: - Animation scripts
 
@@ -71,38 +79,39 @@ enum FrameLoader {
         }
     }
 
-    /// Two-frame run cycle for both facing directions, with a subtle gait bounce.
+    /// Pre-rendered run-cycle variants for the gait animator. For each facing direction and
+    /// each of the two run poses, the pose is rendered at every bob lift level
+    /// (`0 ... bobLevels`). At runtime `PetController` just picks `[frame][level]` each
+    /// display tick, so the continuous vertical bounce — the thing that makes a two-frame
+    /// run read as a smooth, soothing gait instead of a flat A/B flip — costs only an image
+    /// swap, never a per-frame CoreGraphics redraw (keeps the pet cheap to animate).
     ///
-    /// Classic (Neko Archive): row 2, cols 4 & 5 — the side-on run, left-facing in every
-    /// classic sheet (dog, fox, chocobo); mirror for the right-facing variant.
-    /// oneko (adryd): col 4, rows 2 & 3 = West/left run; mirror for right.
+    /// Run-pose positions (stored facing left; mirror for right):
+    ///   Classic (Neko Archive): row 2, cols 4 & 5 — the side-on gallop in every classic
+    ///   sheet (dog, fox, chocobo).
+    ///   oneko (adryd): col 4, rows 2 & 3 — the West/left run, W:[[-4,-2],[-4,-3]].
     ///
-    /// The classic sheets only ship a dramatic two-pose gallop, which "pops" on a tiny icon
-    /// and read as artificial. Lifting the second (extended/flight) frame `runBounce` points
-    /// adds a vertical bound so the cycle reads as running, not a flat A/B flip. oneko already
-    /// animates cleanly, so it stays full-size to match its reference look.
-    ///
-    /// Returns `(left:, right:)` so `PetController` can flip facing without re-loading.
-    static func loadRunFrames(_ animal: Animal) -> (left: [NSImage], right: [NSImage]) {
+    /// Returns `(left:, right:)` indexed `[frame][level]` so facing flips without reloading.
+    static func loadRunVariants(_ animal: Animal) -> (left: [[NSImage]], right: [[NSImage]]) {
         guard let sheet = loadSheet(animal) else { return ([], []) }
         let positions: [(col: Int, row: Int)] = animal.isClassic
             ? [(4, 2), (5, 2)]   // west run — left-facing in all classic sheets
             : [(4, 2), (4, 3)]   // oneko.js West run W:[[-4,-2],[-4,-3]]
-        let left: [NSImage]
-        if animal.isClassic {
-            let spriteH = iconHeight - runBounce
-            left = positions.enumerated().map { i, p in
-                let rect = CGRect(x: p.col * 32, y: p.row * 32, width: 32, height: 32)
-                guard let cell = sheet.cropping(to: rect) else {
-                    return NSImage(size: NSSize(width: iconHeight, height: iconHeight))
-                }
-                // Frame 0 (gather/contact) stays planted; frame 1 (extend/flight) rides higher.
-                return retinaImage(cell, contentHeight: spriteH, lift: i == 0 ? 0 : runBounce)
+        let spriteH = iconHeight - bobLiftPoints
+        let blank = NSImage(size: NSSize(width: iconHeight, height: iconHeight))
+        let left: [[NSImage]] = positions.map { p in
+            let rect = CGRect(x: p.col * 32, y: p.row * 32, width: 32, height: 32)
+            guard let cell = sheet.cropping(to: rect) else {
+                return Array(repeating: blank, count: bobLevels + 1)
             }
-        } else {
-            left = positions.map { cropCell(from: sheet, col: $0.col, row: $0.row) }
+            // One image per lift step; the animator's phase chooses among them so the body
+            // rises and falls continuously between the two leg poses.
+            return (0...bobLevels).map { level in
+                let lift = bobLiftPoints * CGFloat(level) / CGFloat(bobLevels)
+                return retinaImage(cell, contentHeight: spriteH, lift: lift)
+            }
         }
-        let right = left.map { mirrored($0) }
+        let right = left.map { frame in frame.map { mirrored($0) } }
         return (left: left, right: right)
     }
 
