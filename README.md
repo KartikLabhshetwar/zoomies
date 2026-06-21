@@ -8,27 +8,11 @@ Calm Mac, the pet rests. Busy Mac, it breaks into a run.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-black?logo=apple&logoColor=white)](https://github.com/KartikLabhshetwar/zoomies/releases)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange?logo=swift&logoColor=white)](https://swift.org)
-[![Download](https://img.shields.io/badge/Download-latest-brightgreen?logo=apple&logoColor=white)](https://github.com/KartikLabhshetwar/zoomies/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 Inspired by [**RunCat**](https://github.com/runcat-dev/RunCat365) — the running cat that speeds up with your CPU. 🐱
 
 </div>
-
----
-
-## Download
-
-| File | Chip | macOS |
-|------|------|-------|
-| [Zoomies-1.0_arm64.dmg](https://github.com/KartikLabhshetwar/zoomies/releases/download/v1.0/Zoomies-1.0_arm64.dmg) | Apple Silicon (M1/M2/M3/M4) | 14+ |
-| [Zoomies-1.0_x86_64.dmg](https://github.com/KartikLabhshetwar/zoomies/releases/download/v1.0/Zoomies-1.0_x86_64.dmg) | Intel | 14+ |
-
-1. Download the DMG for your chip
-2. Open it and drag **Zoomies.app** into `/Applications`
-3. Launch it — a pixel-art pet appears in your menu bar instantly
-
-> **Tip:** If macOS says the app can't be opened, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ---
 
@@ -38,7 +22,7 @@ A pixel-art pet lives in your menu bar and reacts in real time to how hard your 
 
 ### Pets
 
-10 leg-walking creatures. Eight from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, rat, skeleton, deno, and vampire — most with several color variants (the dog has five; the skeleton ten; the horse eleven), pickable from Settings. Plus the two classic Zoomies 1.0 pixel pets: the **Cat** (oneko) and the **Dalmatian** (Neko Archive).
+9 leg-walking creatures. Seven from the [webpets](https://github.com/sankalpaacharya/webpets) sprite set — dog, fox, horse, panda, skeleton, deno, and vampire — most with several color variants (the dog has five; the skeleton ten; the horse eleven), pickable from Settings. Plus the two classic Zoomies 1.0 pixel pets: the **Cat** (oneko) and the **Dalmatian** (Neko Archive).
 
 ### Features
 
@@ -47,7 +31,7 @@ A pixel-art pet lives in your menu bar and reacts in real time to how hard your 
 - **Real frame animation** — every gait is the source GIF's own multi-frame cycle, played at its native cadence and sped up smoothly with load and your Speed setting (no two-frame fakery)
 - **Direction tracking** — the sprite faces the way your cursor is moving: move left and it runs left, move right and it turns around
 - **Baseline-locked frames** — all of a pet's gaits are registered to one shared scale and baseline, so switching idle → walk → run never makes the pet jump, resize, or wobble
-- **22 creatures, dozens of colors** — pick any from the scrollable Settings grid, then choose a coat color; it switches instantly
+- **9 creatures, dozens of colors** — pick any from the scrollable Settings grid, then choose a coat color; it switches instantly
 - **Three monitors** — CPU (via `host_cpu_load_info`), GPU (via IOAccelerator IOKit), and RAM (via `vm_statistics64`), each accurate and independent
 - **Per-source display** — menu bar shows `CPU 42%` / `GPU 6%` / `RAM 55%` / `MAX 55%` depending on which source you selected
 - **Live menu** — click to see CPU, GPU, and RAM with color-coded bar graphs
