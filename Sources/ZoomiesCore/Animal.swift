@@ -75,7 +75,6 @@ public enum AnimalLibrary {
                              "paint_brown", "socks_beige", "socks_black", "socks_brown",
                              "warrior", "white"]),
         make("panda",       ["black", "brown"]),
-        make("rat",         ["brown", "gray", "white"]),
         make("skeleton",    ["blue", "brown", "green", "orange", "pink", "purple",
                              "red", "warrior", "white", "yellow"], hasWalkFast: false),
         make("vampire",     ["converted", "countess", "girl"], defaultColor: "countess"),

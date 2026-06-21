@@ -114,7 +114,7 @@ private struct AnimalCell: View {
                 Group {
                     if let icon {
                         Image(nsImage: icon)
-                            .interpolation(.none)
+                            .interpolation(.medium)
                             .resizable()
                             .scaledToFit()
                     } else {
@@ -168,7 +168,7 @@ private struct ColorSwatch: View {
             VStack(spacing: 4) {
                 Group {
                     if let icon {
-                        Image(nsImage: icon).interpolation(.none).resizable().scaledToFit()
+                        Image(nsImage: icon).interpolation(.medium).resizable().scaledToFit()
                     } else {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .fill(Color.secondary.opacity(0.15))

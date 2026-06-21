@@ -143,9 +143,9 @@ enum FrameLoader {
         return CGImageSourceCreateImageAtIndex(src, 0, nil)
     }
 
-    /// Picker thumbnail: prefer the designed `icon_<color>.png`; otherwise show the actual
-    /// first idle frame (so color swatches always reflect the real color); finally fall back
-    /// to the pet's generic icon.
+    /// Picker thumbnail: for GIF pets, use the actual idle frame first so the full unclipped
+    /// animal is visible; icon PNGs are 32×32 with art touching the edges and will clip heads
+    /// and tails. Sheet pets crop the sit pose from the sheet.
     static func loadThumbnail(_ animal: Animal, colorID: String) -> NSImage? {
         // Sheet pets: crop the sit pose from the sheet.
         if case let .sheet(resource, layout) = animal.source {
@@ -154,17 +154,19 @@ enum FrameLoader {
             guard let cell = sheet.cropping(to: CGRect(x: sit.0 * 32, y: sit.1 * 32, width: 32, height: 32))
             else { return nil }
             let b = contentBox(cell)
+            let backing = NSScreen.main?.backingScaleFactor ?? 2
             let cropped = cell.cropping(to: CGRect(x: b.x, y: cell.height - b.y - b.h, width: b.w, height: b.h)) ?? cell
-            return NSImage(cgImage: cropped, size: NSSize(width: b.w, height: b.h))
+            return NSImage(cgImage: cropped, size: NSSize(width: CGFloat(b.w) / backing, height: CGFloat(b.h) / backing))
         }
         let color = animal.color(withID: colorID).id
+        // Idle GIF frame first: shows the full animal at the correct color without edge-clipping.
+        if let idle = idleFrameThumbnail(pet: animal.id, color: color) {
+            return idle
+        }
         if let url = Bundle.main.url(forResource: "icon_\(color)", withExtension: "png",
                                      subdirectory: "Pets/\(animal.id)"),
            let img = NSImage(contentsOf: url) {
             return img
-        }
-        if let idle = idleFrameThumbnail(pet: animal.id, color: color) {
-            return idle
         }
         if let url = Bundle.main.url(forResource: "icon", withExtension: "png",
                                      subdirectory: "Pets/\(animal.id)") {
@@ -286,7 +288,8 @@ enum FrameLoader {
         // contentBox is bottom-left; cropping(to:) wants top-left.
         let rect = CGRect(x: box.x, y: img.height - box.y - box.h, width: box.w, height: box.h)
         let cropped = img.cropping(to: rect) ?? img
-        return NSImage(cgImage: cropped, size: NSSize(width: box.w, height: box.h))
+        let backing = NSScreen.main?.backingScaleFactor ?? 2
+        return NSImage(cgImage: cropped, size: NSSize(width: CGFloat(box.w) / backing, height: CGFloat(box.h) / backing))
     }
 
     private static func mirrored(_ image: NSImage) -> NSImage {
